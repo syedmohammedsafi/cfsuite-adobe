@@ -10,6 +10,7 @@
 		<li><a href="cloudCredentials/i.cfm">Cloud Credentials</a> — AWS/Azure/GCP credential fields sync</li>
 		<li><a href="cloudConfiguration/i.cfm">Cloud Configuration</a> — Config Alias, Service Name sync</li>
 		<li><a href="graphql/i.cfm">GraphQL</a> — Configuration Alias registration sync</li>
+		<li><a href="pdfServices/i.cfm">PDF Services</a> &mdash; Name, Host Name, Port, Weight, HTTPS, Engine, Data list sync</li>
 		<li><a href="restServices/i.cfm">REST Services</a> — no automated test; see notes (confirmed unsafe in this environment)</li>
 	</ul>
 </cfoutput>

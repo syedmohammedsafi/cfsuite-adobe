@@ -73,6 +73,8 @@ component {
 		switch(arguments.apiArea){
 			case "datasources":
 				return new cfsuite.ccssuite.utils.datasourceConfigUtil().init().getSetting(arguments.settingName);
+			case "pdfServices":
+				return new cfsuite.ccssuite.utils.pdfServiceConfigUtil().init().getSetting(arguments.settingName);
 			case "nosql":
 				return new cfsuite.ccssuite.utils.nosqlDatasourceApiUtil().init().getSetting(arguments.settingName);
 			case "nosqlDatasources":
@@ -220,6 +222,8 @@ component {
 		switch(arguments.apiArea){
 			case "datasources":
 				return new cfsuite.ccssuite.utils.datasourceConfigUtil().init().setSetting(arguments.settingName, arguments.settingValue);
+			case "pdfServices":
+				return new cfsuite.ccssuite.utils.pdfServiceConfigUtil().init().setSetting(arguments.settingName, arguments.settingValue);
 			case "nosql":
 				return new cfsuite.ccssuite.utils.nosqlDatasourceApiUtil().init().setSetting(arguments.settingName, arguments.settingValue);
 			case "nosqlDatasources":

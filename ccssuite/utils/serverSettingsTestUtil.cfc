@@ -882,6 +882,19 @@ component output="true" {
 				return (trim(value) EQ "CCSTestWebServiceName") ? "" : "CCSTestWebServiceName";
 			case "CCSTestCloudCredential":
 				return (trim(value) EQ "CCSTestCloudCredential") ? "" : "CCSTestCloudCredential";
+			case "CCSTestPDFName":
+			case "CCSTestPDFService":
+				return (trim(value) EQ "CCSTestPDFName") ? "" : "CCSTestPDFName";
+			case "CCSTestPDFHostName":
+				return (trim(value) EQ "127.0.0.2") ? "" : "127.0.0.2";
+			case "CCSTestPDFPort":
+				return (trim(value) EQ "8998") ? "" : "8998";
+			case "CCSTestPDFWeight":
+				return (trim(value) EQ "2") ? "" : "2";
+			case "CCSTestPDFHttpsEnabled":
+				return (trim(value) EQ "true" OR (isBoolean(value) AND value)) ? "" : "true";
+			case "CCSTestPDFEngine":
+				return (trim(value) EQ "2.0") ? "1.0" : "2.0";
 			case "CCSTestCloudVendor":
 				return (trim(value) EQ "AWS") ? "" : "AWS";
 			case "CCSTestCloudRegion":

@@ -393,6 +393,9 @@ component output="false" {
 		// Services' neo-xmlrpc.xml, so the same active-push mechanism is safe here.
 		if(area EQ "cloudcredentials")
 			return true;
+		// PDF Service registration (simulated): active push required since CCS does not reliably sync this config
+		if(area EQ "pdfservices")
+			return true;
 		// GraphQL Client Configuration (neo-graphql-config.xml): confirmed via direct testing that a
 		// newly-added client configuration DOES create a real CCS version on the prime node (unlike
 		// Cloud Credentials, where no version is ever created), but never appears in a peer node's
