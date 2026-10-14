@@ -1,0 +1,13 @@
+clean-start 13:22:53 engineVersion=[2]
+
+THREAD: register OK 13:22:58
+
+after 20s usernames={} timeouts={}
+
+=== adminapi setWebService start 13:24:56
+
+THREAD3: setWebService OK 13:24:58
+
+=== full-field setWebService start 13:26:45
+
+THREAD4: full setWebService OK 13:26:47

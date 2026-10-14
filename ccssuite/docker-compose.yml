@@ -1,0 +1,75 @@
+# ============================================================
+# 4 ColdFusion 2025 docker nodes for the existing CCS hub.
+#
+# Hub = the already-running container "cf2025-test"
+# (adobecoldfusion/coldfusion2025:latest, published on host :8500,
+# CCS tool at /opt/coldfusion/cfusion/bin/ccs.sh). These 4 nodes
+# join the hub's network "cf2025-network" so the CCS server inside
+# the hub can reach each node by container name on internal port 8500.
+#
+# No volumes: secret keys and ccs.properties are read/written with
+# `docker exec`, so there are no empty-host-dir mounts shadowing the
+# image's own lib/ccs, and nothing to clean up on the host.
+#
+# Registration + CCS wiring is done by ccsDockerSetup.ps1 (host),
+# NOT by a CFM -- the hub container has no docker CLI, so it cannot
+# drive docker compose from inside.
+# ============================================================
+
+services:
+
+  cf-plain:
+    image: adobecoldfusion/coldfusion2025:latest
+    container_name: cf-plain
+    environment:
+      - acceptEULA=YES
+      - password=admin
+    ports:
+      - "8600:8500"
+    networks:
+      - cf2025-network
+
+  cf-lockdown:
+    image: adobecoldfusion/coldfusion2025:latest
+    container_name: cf-lockdown
+    environment:
+      - acceptEULA=YES
+      - password=admin
+      # ponytail: enableSecureProfile (Security > Secure Profile) is the
+      # container-native hardening toggle. The Windows/RHEL CF Lockdown
+      # Guide .exe does not run inside this Linux image. Swap in the real
+      # lockdown tool only if Adobe ships a container-native version.
+      - enableSecureProfile=true
+    ports:
+      - "8601:8500"
+    networks:
+      - cf2025-network
+
+  cf-sandbox:
+    image: adobecoldfusion/coldfusion2025:latest
+    container_name: cf-sandbox
+    environment:
+      - acceptEULA=YES
+      - password=admin
+    ports:
+      - "8602:8500"
+    networks:
+      - cf2025-network
+
+  cf-ssl:
+    image: adobecoldfusion/coldfusion2025:latest
+    container_name: cf-ssl
+    environment:
+      - acceptEULA=YES
+      - password=admin
+    ports:
+      - "8603:8500"
+      - "8643:8443"
+    networks:
+      - cf2025-network
+
+# Reuse the hub's existing network so the CCS server (in cf2025-test)
+# can reach these nodes by name. Created already by the hub stack.
+networks:
+  cf2025-network:
+    external: true

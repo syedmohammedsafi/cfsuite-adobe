@@ -1,0 +1,37 @@
+<!---
+* @file  removeTestIdps.cfm
+* @description Remove all CCS test IDPs — multi-node CCS sync test
+--->
+<h2>Remove CCS Test IDPs</h2>
+<p>File: security/idpConfiguration/removeTestIdps.cfm</p>
+<br>
+<cftry>
+	<cfscript>
+		syncTestResult = {};
+		testDvr = new cfsuite.ccssuite.testDriver();
+		secUtil = new cfsuite.ccssuite.utils.securityTestUtil().init();
+		syncTestResult = secUtil.runIdpRemoveAllSyncTest(testDvr, CGI.SCRIPT_NAME);
+	</cfscript>
+
+	<cf_qatest id="test-Security-IdpConfiguration-RemoveTestIdps">
+		<cfscript>
+			writeOutput(secUtil.getQatestResultMessage(syncTestResult.passed));
+		</cfscript>
+		<cf_expectedresults>
+			setting values as expected<br>
+		</cf_expectedresults>
+	</cf_qatest>
+	<cf_qatestEnd stats=true>
+
+	<cfcatch type="any">
+		<cfoutput>
+			<p>An error occurred in the test: #cfcatch.message# #cfcatch.detail#</p>
+		</cfoutput>
+	</cfcatch>
+
+	<cffinally>
+		<cfscript>
+			secUtil.cleanupTestIdpsAfterTest(testDvr, CGI.SCRIPT_NAME);
+		</cfscript>
+	</cffinally>
+</cftry>

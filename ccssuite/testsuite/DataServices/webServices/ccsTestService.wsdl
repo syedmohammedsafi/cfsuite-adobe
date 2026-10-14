@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<wsdl:definitions name="CCSTestService"
+	targetNamespace="http://ccssuite.cfsuite/CCSTestService"
+	xmlns:tns="http://ccssuite.cfsuite/CCSTestService"
+	xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+	xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/"
+	xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/">
+
+	<wsdl:message name="pingRequest"/>
+	<wsdl:message name="pingResponse">
+		<wsdl:part name="return" type="xsd:string"/>
+	</wsdl:message>
+
+	<wsdl:portType name="CCSTestServicePortType">
+		<wsdl:operation name="ping">
+			<wsdl:input message="tns:pingRequest"/>
+			<wsdl:output message="tns:pingResponse"/>
+		</wsdl:operation>
+	</wsdl:portType>
+
+	<wsdl:binding name="CCSTestServiceBinding" type="tns:CCSTestServicePortType">
+		<soap:binding style="rpc" transport="http://schemas.xmlsoap.org/soap/http"/>
+		<wsdl:operation name="ping">
+			<soap:operation soapAction=""/>
+			<wsdl:input><soap:body use="encoded" namespace="http://ccssuite.cfsuite/CCSTestService" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/></wsdl:input>
+			<wsdl:output><soap:body use="encoded" namespace="http://ccssuite.cfsuite/CCSTestService" encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/></wsdl:output>
+		</wsdl:operation>
+	</wsdl:binding>
+
+	<wsdl:service name="CCSTestService">
+		<wsdl:port name="CCSTestServicePort" binding="tns:CCSTestServiceBinding">
+			<soap:address location="http://localhost/ccs-test-service"/>
+		</wsdl:port>
+	</wsdl:service>
+</wsdl:definitions>

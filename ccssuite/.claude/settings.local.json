@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(echo \"--- restCFCs ---\"; ls -la \"/c/ColdFusion2025/cfusion/wwwroot/cfsuite/ccssuite/restCFCs\" 2>&1 *)",
+      "Read(//c/ColdFusion2025/cfusion/wwwroot/cfsuite/**)",
+      "Bash(curl -s -m 10 \"http://localhost:8500/cfsuite/ccssuite/testsuite/serverSettings/_getter.cfm?setting=RequestQueueTimeoutPage&area=requestTuning\")",
+      "Bash(echo \"---STATUS $?---\")",
+      "Bash(curl -s -m 20 \"http://localhost:8500/cfsuite/ccssuite/testsuite/serverSettings/_setter.cfm?setting=RequestQueueTimeoutPage&setValueTo=%2FCFIDE%2Fadministrator%2Ftemplates%2Fmissing_template_error.cfm&area=requestTuning\")",
+      "Bash(curl -s -m 10 \"http://localhost:8500/cfsuite/ccssuite/testsuite/serverSettings/_setter.cfm?setting=RequestQueueTimeoutPage&setValueTo=%2FCFIDE%2Fadministrator%2Ftemplates%2Frequest_timeout_error.htm&area=requestTuning\")",
+      "Bash(curl -s -m 8 -w \"\\\\nSTATUS:%{http_code}\\\\n\" \"http://localhost:8501/cfsuite/ccssuite/testsuite/serverSettings/settings/ping.cfm\")",
+      "Bash(curl -s -m 8 -w \"\\\\nSTATUS:%{http_code}\\\\n\" \"http://localhost:8502/cfsuite/ccssuite/testsuite/serverSettings/settings/ping.cfm\")",
+      "Bash(curl -s -m 8 -w \"\\\\nSTATUS:%{http_code}\\\\n\" \"http://localhost:8501/cfsuite/ccssuite/testsuite/serverSettings/_getter.cfm?setting=RequestTimeout&area=requestTuning\")",
+      "Bash(curl -s -m 8 -w \"\\\\nSTATUS:%{http_code}\\\\n\" \"http://localhost:8501/cfsuite/ccssuite/testsuite/serverSettings/_getter.cfm?setting=RequestQueueTimeoutPage&area=settings\")",
+      "Bash(mkdir -p \"/c/Users/m275/AppData/Local/Temp/claude/c--ColdFusion2025-cfusion-wwwroot-cfsuite-ccssuite/04fbba98-4c73-40d7-a881-8143eeb04e7b/scratchpad\")",
+      "Bash(curl -s -m 90 -w \"\\\\nHTTP_STATUS:%{http_code}\\\\n\" \"http://localhost:8500/cfsuite/ccssuite/testsuite/serverSettings/memoryVariables/enableApplicationScope.cfm?reinit=1\" -o \"/c/Users/m275/AppData/Local/Temp/claude/c--ColdFusion2025-cfusion-wwwroot-cfsuite-ccssuite/04fbba98-4c73-40d7-a881-8143eeb04e7b/scratchpad/eas_run.html\")",
+      "Read(//c/Users/m275/AppData/Local/Temp/claude/c--ColdFusion2025-cfusion-wwwroot-cfsuite-ccssuite/04fbba98-4c73-40d7-a881-8143eeb04e7b/scratchpad//**)",
+      "Bash(python3 -c ' *)",
+      "Bash(grep -v \"^\\\\s*$\")"
+    ],
+    "additionalDirectories": [
+      "C:\\Users\\m275\\AppData\\Local\\Temp\\claude\\c--ColdFusion2025-cfusion-wwwroot-cfsuite-ccssuite\\04fbba98-4c73-40d7-a881-8143eeb04e7b\\scratchpad"
+    ]
+  }
+}

@@ -1,0 +1,38 @@
+<!---
+* @file  solrUsername.cfm
+* @description Solr Server User name (username) — multi-node CCS sync test.
+--->
+<h2>Solr Server User Name</h2>
+<p>File: solrUsername.cfm</p>
+<br>
+<cftry>
+	<cfscript>
+		final SETTING_NAME = "username";
+		testDvr = new cfsuite.ccssuite.testDriver();
+		stUtil = new cfsuite.ccssuite.utils.serverSettingsTestUtil().init();
+		syncTestResult = {};
+		syncTestResult = stUtil.runMultiNodeBooleanSyncTest(testDvr, SETTING_NAME, CGI.SCRIPT_NAME);
+	</cfscript>
+
+	<cf_qatest id="test-Data_Services-Solr_Server-#SETTING_NAME#">
+		<cfscript>
+			writeOutput(stUtil.getQatestResultMessage(syncTestResult.passed));
+		</cfscript>
+		<cf_expectedresults>
+			setting values as expected<br>
+		</cf_expectedresults>
+	</cf_qatest>
+	<cf_qatestEnd stats=true>
+
+	<cfcatch type="any">
+		<cfoutput>
+			<p>An error occurred in the test: #cfcatch.message# #cfcatch.detail#</p>
+		</cfoutput>
+	</cfcatch>
+
+	<cffinally>
+		<cfscript>
+			stUtil.restoreMultiNodeSyncTest(testDvr, syncTestResult, SETTING_NAME);
+		</cfscript>
+	</cffinally>
+</cftry>

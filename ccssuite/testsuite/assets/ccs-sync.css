@@ -1,0 +1,99 @@
+.ccs-sync-summary {
+	font-family: Segoe UI, Arial, sans-serif;
+	margin: 1rem 0 1.5rem;
+	width: 100%;
+	max-width: 100%;
+	box-sizing: border-box;
+}
+
+.ccs-sync-summary h3 {
+	margin: 0 0 0.75rem;
+	font-size: 1.1rem;
+	font-weight: 600;
+	color: rgb(26, 26, 26);
+}
+
+.ccs-sync-summary .prime-node {
+	color: rgb(85, 85, 85);
+	font-size: 0.95rem;
+	margin-bottom: 0.75rem;
+}
+
+.ccs-sync-table {
+	width: 100%;
+	max-width: 100%;
+	border-collapse: collapse;
+	font-size: 0.92rem;
+	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+	table-layout: auto;
+}
+
+.ccs-sync-table th {
+	background: rgb(47, 64, 80);
+	color: rgb(255, 255, 255);
+	text-align: left;
+	padding: 0.65rem 0.85rem;
+	font-weight: 600;
+}
+
+.ccs-sync-table td {
+	padding: 0.6rem 0.85rem;
+	border-bottom: 1px solid rgb(229, 231, 235);
+	vertical-align: top;
+}
+
+.ccs-sync-table tbody tr:nth-child(even) {
+	background: rgb(248, 250, 252);
+}
+
+.ccs-sync-table tbody tr:hover {
+	background: rgb(238, 244, 255);
+}
+
+.ccs-sync-table .node-cell {
+	font-family: Consolas, monospace;
+	font-weight: 600;
+	color: rgb(30, 58, 95);
+}
+
+.ccs-sync-table .value-cell {
+	font-family: Consolas, monospace;
+}
+
+.ccs-status {
+	display: inline-block;
+	padding: 0.2rem 0.55rem;
+	border-radius: 999px;
+	font-size: 0.8rem;
+	font-weight: 700;
+	letter-spacing: 0.02em;
+}
+
+.ccs-status-pass {
+	background: rgb(220, 252, 231);
+	color: rgb(22, 101, 52);
+	border: 1px solid rgb(134, 239, 172);
+}
+
+.ccs-status-fail {
+	background: rgb(254, 226, 226);
+	color: rgb(153, 27, 27);
+	border: 1px solid rgb(252, 165, 165);
+}
+
+.ccs-status-pending {
+	background: rgb(254, 243, 199);
+	color: rgb(146, 64, 14);
+	border: 1px solid rgb(252, 211, 77);
+}
+
+.ccs-set-badge {
+	display: inline-block;
+	margin-left: 0.35rem;
+	padding: 0.1rem 0.4rem;
+	border-radius: 4px;
+	font-size: 0.72rem;
+	font-weight: 600;
+	background: rgb(219, 234, 254);
+	color: rgb(30, 64, 175);
+}
