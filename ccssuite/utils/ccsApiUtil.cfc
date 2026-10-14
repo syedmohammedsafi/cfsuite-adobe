@@ -369,6 +369,8 @@ component {
 
 	// DEBUGGING & LOGGING
 	private any function getDebuggingSetting(required string settingName, required string apiArea){
+		if(arguments.apiArea EQ "systemProbes")
+			return new cfsuite.ccssuite.utils.systemProbesConfigUtil().init().getSetting(arguments.settingName);
 		var debugUtil = new cfsuite.ccssuite.utils.debuggingConfigUtil().init();
 		var logUtil = new cfsuite.ccssuite.utils.loggingConfigUtil().init();
 
@@ -431,6 +433,8 @@ component {
 	}
 
 	private any function setDebuggingSetting(required string settingName, required any settingValue, required string apiArea){
+		if(arguments.apiArea EQ "systemProbes")
+			return new cfsuite.ccssuite.utils.systemProbesConfigUtil().init().setSetting(arguments.settingName, arguments.settingValue);
 		var debugUtil = new cfsuite.ccssuite.utils.debuggingConfigUtil().init();
 		var logUtil = new cfsuite.ccssuite.utils.loggingConfigUtil().init();
 

@@ -33,7 +33,7 @@ component output="false" {
 
 	private boolean function isDebuggingArea(required string apiArea){
 		return listFindNoCase(
-			"debugoutputsettings,loggingsettings,debuggingipaddress,developerprofile,debuggersettings",
+			"debugoutputsettings,loggingsettings,debuggingipaddress,developerprofile,debuggersettings,systemprobes",
 			normalizeArea(arguments.apiArea)
 		) GT 0;
 	}
@@ -353,6 +353,8 @@ component output="false" {
 
 	public boolean function requiresPeerInstancePropagation(required string settingName, string apiArea = ""){
 		var area = normalizeArea(arguments.apiArea);
+		if(area EQ "systemprobes")
+			return false;
 		if(area EQ "document" OR isDebuggingArea(area) OR area EQ "settings")
 			return true;
 		// Web Services registration (neo-xmlrpc.xml "mappings") is not part of what real CCS
@@ -487,6 +489,8 @@ component output="false" {
 					runtime.adminUtil.logout(runtime.admin);
 				}
 			case "debugging":
+				if(normalizeArea(arguments.apiArea) EQ "systemprobes")
+					return new cfsuite.ccssuite.utils.systemProbesConfigUtil().init().getSetting(arguments.settingName);
 				return trim("" & new cfsuite.ccssuite.utils.debuggingConfigUtil().init().getDebuggingSetting(arguments.settingName));
 			case "scope":
 				runtime = getRuntime();
@@ -595,6 +599,8 @@ component output="false" {
 					runtime.adminUtil.logout(runtime.admin);
 				}
 			case "debugging":
+				if(normalizeArea(arguments.apiArea) EQ "systemprobes")
+					return new cfsuite.ccssuite.utils.systemProbesConfigUtil().init().setSetting(arguments.settingName, arguments.settingValue);
 				new cfsuite.ccssuite.utils.debuggingConfigUtil().init().setDebuggingSetting(arguments.settingName, arguments.settingValue);
 				return getSetting(arguments.settingName, arguments.apiArea);
 			case "scope":

@@ -420,7 +420,7 @@ component output="true" displayname=""  {
 		var syncFrameSettingName = structKeyExists(arguments.postSyncFrame, application.testConstants.TEST_FRAME.CFSETTING)
 			? arguments.postSyncFrame[application.testConstants.TEST_FRAME.CFSETTING] : "";
 		if((syncFrameApiArea EQ "caching" AND listFindNoCase("maxcachecount,jcsservermaxidle,jcsservermaxlife,jcsservermaxobjects,memcachedTimeToIdleSeconds,memcachedTimeToLiveSeconds,memcachedMaxElementsInMemory,redisCacheStoragePort,redisTimeToIdleSeconds,redisTimeToLiveSeconds,redisMaxElementsInMemory,redisCacheStoragePassword", syncFrameSettingName))
-						OR listFindNoCase("mappings,scheduledtasks,fontmanagement,datasources,nosql,pdfServices", syncFrameApiArea)
+						OR listFindNoCase("mappings,scheduledtasks,fontmanagement,datasources,nosql,pdfServices,systemprobes", syncFrameApiArea)
 			OR (syncFrameApiArea EQ "memoryvariables" AND listFindNoCase("sessionStoragePort,sessionStorageTimeout,sessionStoragePassword", syncFrameSettingName))){
 			var normalizedFrame = duplicate(arguments.postSyncFrame);
 			var numericSetTypes = [application.testConstants.TEST_FRAME.PRIME_SET, application.testConstants.TEST_FRAME.NONPRIME_SET];
@@ -434,7 +434,7 @@ component output="true" displayname=""  {
 					var actualPair = normalizedFrame[numericSetType][numericNodeKey];
 					var expectedPair = arguments.expectedPostSetFrame[numericSetType][numericNodeKey];
 					if(structKeyExists(actualPair, postValueKey) AND structKeyExists(expectedPair, postValueKey)
-												AND (listFindNoCase("mappings,scheduledtasks,fontmanagement,datasources,nosql", syncFrameApiArea) OR (isNumeric(actualPair[postValueKey]) AND isNumeric(expectedPair[postValueKey])) OR listFindNoCase("redisCacheStoragePassword,sessionStoragePassword", syncFrameSettingName))
+												AND (listFindNoCase("mappings,scheduledtasks,fontmanagement,datasources,nosql,pdfServices,systemprobes", syncFrameApiArea) OR (isNumeric(actualPair[postValueKey]) AND isNumeric(expectedPair[postValueKey])) OR listFindNoCase("redisCacheStoragePassword,sessionStoragePassword", syncFrameSettingName))
 						AND valuesMatch(syncFrameSettingName, expectedPair[postValueKey], actualPair[postValueKey], syncFrameApiArea, actualPair[application.testConstants.TEST_FRAME.PRESET_VALUE]))
 						actualPair[postValueKey] = expectedPair[postValueKey];
 				}

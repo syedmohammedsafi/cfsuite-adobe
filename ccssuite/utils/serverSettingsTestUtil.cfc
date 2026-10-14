@@ -895,6 +895,119 @@ component output="true" {
 				return (trim(value) EQ "true" OR (isBoolean(value) AND value)) ? "" : "true";
 			case "CCSTestPDFEngine":
 				return (trim(value) EQ "2.0") ? "1.0" : "2.0";
+
+			// System Probes - Global Settings
+			// System Probes - Global Settings
+			case "CCSTestProbeAlarmEmail":
+			case "CCSTestSystemProbeAlarmEmail":
+				return (trim(value) EQ "probe-alt@example.com") ? "test-probe@example.com" : "probe-alt@example.com";
+			case "CCSTestProbeAlarmEmailFrom":
+			case "CCSTestSystemProbeAlarmEmailFrom":
+				return (trim(value) EQ "probe-from-alt@example.com") ? "probe-from@example.com" : "probe-from-alt@example.com";
+			case "CCSTestProbeCfmUrl":
+			case "CCSTestSystemProbeCfmUrl":
+				return (trim(value) EQ "http://127.0.0.2:8500/CFIDE/probe.cfm") ? "http://127.0.0.1:8500/CFIDE/probe.cfm" : "http://127.0.0.2:8500/CFIDE/probe.cfm";
+			case "CCSTestProbeUsername":
+			case "CCSTestSystemProbeUsername":
+				return (trim(value) EQ "testprobeuser2") ? "testprobeuser" : "testprobeuser2";
+			case "CCSTestProbePassword":
+			case "CCSTestSystemProbePassword":
+				return (trim(value) EQ "probeSecret2") ? "probeSecret1" : "probeSecret2";
+
+			// System Probes - Probe Definition & Properties (Task alias: CCSTestProbe / CCSTestSystemProbe)
+			case "CCSTestProbeTaskName":
+			case "CCSTestSystemProbeTaskName":
+				return (trim(value) EQ "CCSTestProbe" OR trim(value) EQ "CCSTestSystemProbe") ? "" : "CCSTestProbe";
+			case "CCSTestProbeIntervalHour":
+			case "CCSTestSystemProbeIntervalHour":
+				return (trim(value) EQ "2") ? "1" : "2";
+			case "CCSTestProbeIntervalMin":
+			case "CCSTestSystemProbeIntervalMin":
+				return (trim(value) EQ "30") ? "15" : "30";
+			case "CCSTestProbeIntervalSec":
+			case "CCSTestSystemProbeIntervalSec":
+				return (trim(value) EQ "45") ? "30" : "45";
+			case "CCSTestProbeCustomStartTime":
+			case "CCSTestSystemProbeCustomStartTime":
+				return (trim(value) EQ "01:00:00") ? "00:00:00" : "01:00:00";
+			case "CCSTestProbeCustomEndTime":
+			case "CCSTestSystemProbeCustomEndTime":
+				return (trim(value) EQ "23:00:00") ? "23:59:59" : "23:00:00";
+			case "CCSTestProbeScheduledURL":
+			case "CCSTestSystemProbeScheduledURL":
+				return (trim(value) EQ "http://127.0.0.2:8500/CFIDE/probe.cfm") ? "http://127.0.0.1:8500/CFIDE/probe.cfm" : "http://127.0.0.2:8500/CFIDE/probe.cfm";
+			case "CCSTestProbeUsernameField":
+			case "CCSTestSystemProbeUsernameField":
+				return (trim(value) EQ "probeuser2") ? "probeuser" : "probeuser2";
+			case "CCSTestProbePasswordField":
+			case "CCSTestSystemProbePasswordField":
+				return (trim(value) EQ "probepass2") ? "probepass" : "probepass2";
+			case "CCSTestProbeRequestTimeout":
+			case "CCSTestSystemProbeRequestTimeout":
+				return (trim(value) EQ "120") ? "60" : "120";
+			case "CCSTestProbeProxyServer":
+			case "CCSTestSystemProbeProxyServer":
+				return (trim(value) EQ "127.0.0.2") ? "127.0.0.1" : "127.0.0.2";
+			case "CCSTestProbeProxyPort":
+			case "CCSTestSystemProbeProxyPort":
+				return (trim(value) EQ "8888") ? "8080" : "8888";
+			case "CCSTestProbeMatchCheck":
+			case "CCSTestSystemProbeMatchCheck":
+				return (trim(value) EQ "1" OR (isBoolean(value) AND value)) ? "0" : "1";
+			case "CCSTestProbeTrueMatch":
+			case "CCSTestSystemProbeTrueMatch":
+				return (trim(value) EQ "0") ? "1" : "0";
+			case "CCSTestProbeMatchType":
+			case "CCSTestSystemProbeMatchType":
+				return (trim(value) EQ "regex") ? "string" : "regex";
+			case "CCSTestProbeMatchValue":
+			case "CCSTestSystemProbeMatchValue":
+				return (trim(value) EQ "ProbeFailString") ? "ColdFusion" : "ProbeFailString";
+			case "CCSTestProbeSendEmail":
+			case "CCSTestSystemProbeSendEmail":
+				return (trim(value) EQ "1" OR (isBoolean(value) AND value)) ? "0" : "1";
+			case "CCSTestProbeExecuteCheck":
+			case "CCSTestSystemProbeExecuteCheck":
+				return (trim(value) EQ "1" OR (isBoolean(value) AND value)) ? "0" : "1";
+			case "CCSTestProbeExecute":
+			case "CCSTestSystemProbeExecute":
+				return (trim(value) EQ "C:\Windows\System32\ping.exe") ? "C:\Windows\System32\cmd.exe" : "C:\Windows\System32\ping.exe";
+			case "CCSTestProbePublish":
+			case "CCSTestSystemProbePublish":
+				return (trim(value) EQ "1" OR (isBoolean(value) AND value)) ? "0" : "1";
+			case "CCSTestProbePublishFile":
+			case "CCSTestSystemProbePublishFile":
+				return (trim(value) EQ "C:\ColdFusion2025\cfusion\logs\probe_out2.log") ? "C:\ColdFusion2025\cfusion\logs\probe_out.log" : "C:\ColdFusion2025\cfusion\logs\probe_out2.log";
+			case "CCSTestProbePublishOverwrite":
+			case "CCSTestSystemProbePublishOverwrite":
+				return (trim(value) EQ "1" OR (isBoolean(value) AND value)) ? "0" : "1";
+			case "CCSTestProbeResolveURL":
+			case "CCSTestSystemProbeResolveURL":
+				return (trim(value) EQ "1" OR (isBoolean(value) AND value)) ? "0" : "1";
+			case "CCSTestProbeEventHandler":
+			case "CCSTestSystemProbeEventHandler":
+				return (trim(value) EQ "cfsuite.probeHandler2") ? "cfsuite.probeHandler" : "cfsuite.probeHandler2";
+			case "CCSTestProbeExclude":
+			case "CCSTestSystemProbeExclude":
+				return (trim(value) EQ "2099-01-02") ? "2099-01-01" : "2099-01-02";
+			case "CCSTestProbeOnMisfire":
+			case "CCSTestSystemProbeOnMisfire":
+				return (trim(value) EQ "fire_now") ? "ignore" : "fire_now";
+			case "CCSTestProbeOnException":
+			case "CCSTestSystemProbeOnException":
+				return (trim(value) EQ "pause") ? "resume" : "pause";
+			case "CCSTestProbeOnComplete":
+			case "CCSTestSystemProbeOnComplete":
+				return (trim(value) EQ "probeCompleteAction2") ? "probeCompleteAction1" : "probeCompleteAction2";
+			case "CCSTestProbePriority":
+			case "CCSTestSystemProbePriority":
+				return (trim(value) EQ "9") ? "5" : "9";
+			case "CCSTestProbeRetryCount":
+			case "CCSTestSystemProbeRetryCount":
+				return (trim(value) EQ "5") ? "3" : "5";
+			case "CCSTestProbeCluster":
+			case "CCSTestSystemProbeCluster":
+				return (trim(value) EQ "1" OR (isBoolean(value) AND value)) ? "0" : "1";
 			case "CCSTestCloudVendor":
 				return (trim(value) EQ "AWS") ? "" : "AWS";
 			case "CCSTestCloudRegion":
@@ -1743,7 +1856,7 @@ component output="true" {
 		var instanceLocalArea = isInstanceLocalApiArea(arguments.apiArea, settingName);
 		var apiUtil = new cfsuite.ccssuite.utils.serverSettingsApiUtil().init();
 		var requireCacheSync = (lCase(arguments.apiArea) EQ "caching"
-			OR listFindNoCase("mappings,scheduledtasks,fontmanagement,datasources", arguments.apiArea)
+			OR listFindNoCase("mappings,scheduledtasks,fontmanagement,datasources,systemprobes", arguments.apiArea)
 			OR (lCase(arguments.apiArea) EQ "memoryvariables" AND new cfsuite.ccssuite.utils.memoryVariablesConfigUtil().init().isStorageSetting(settingName)))
 			AND (NOT structKeyExists(application, "ccsTestNodesScope") OR application.ccsTestNodesScope EQ "all");
 
@@ -1817,7 +1930,7 @@ component output="true" {
 				else if(unchangedFromPreset){
 					syncState = requireCacheSync AND (left(lCase(settingName), 5) EQ "redis" OR left(lCase(settingName), 3) EQ "jcs"
 						OR listFindNoCase("enableInternalQueryCache,maxcachecount", settingName)
-							OR listFindNoCase("mappings,scheduledtasks,fontmanagement,datasources", arguments.apiArea)
+							OR listFindNoCase("mappings,scheduledtasks,fontmanagement,datasources,systemprobes", arguments.apiArea)
 						OR new cfsuite.ccssuite.utils.memoryVariablesConfigUtil().init().isStorageSetting(settingName))
 						? "Not synced with CCS" : "Pending sync";
 				}
