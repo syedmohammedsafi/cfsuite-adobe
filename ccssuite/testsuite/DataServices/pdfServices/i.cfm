@@ -16,4 +16,9 @@
 	<ul>
 		<li><a href="pdfServiceList.cfm">PDF Service List</a></li>
 	</ul>
+
+	<h3>Service Operations (CCS Verification)</h3>
+	<ul>
+		<li><a href="createDeletePdfService.cfm">Create PDF Service</a> | <a href="createDeletePdfService.cfm?delete=1">Delete PDF Service</a></li>
+	</ul>
 </cfoutput>
