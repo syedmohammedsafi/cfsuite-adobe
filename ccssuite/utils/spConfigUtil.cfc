@@ -157,6 +157,10 @@ component output="false" {
 		}
 	}
 
+	public array function getConfiguredAliases(){
+		return structKeyArray(getServiceProvidersMap(getNeoSamlMap()));
+	}
+
 	public array function getAllTestSpAliases(){
 		return [
 			variables.TEST_SP_ADD_ALIAS,

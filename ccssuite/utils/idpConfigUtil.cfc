@@ -189,6 +189,10 @@ component output="false" {
 		return reReplace(mid(arguments.xmlContent, startPos, endPos - startPos), "[\r\n\s]", "", "all");
 	}
 
+	public array function getConfiguredAliases(){
+		return structKeyArray(getIdentityProvidersMap(getNeoSamlMap()));
+	}
+
 	public array function getAllTestIdpAliases(){
 		return [
 			variables.TEST_IDP_URL_ALIAS,

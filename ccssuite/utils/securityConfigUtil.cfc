@@ -22,6 +22,9 @@ component output="false" {
 	variables.EXTERNAL_AUTH_NONE_SETTING = "ExternalAuthNone";
 	variables.EXTERNAL_AUTH_SAML_SETTING = "ExternalAuthSaml";
 	variables.EXTERNAL_AUTH_LDAP_SETTING = "ExternalAuthLdap";
+	variables.ADMIN_SAML_IDP_SETTING = "AdminSamlIdentityProvider";
+	variables.ADMIN_SAML_SP_SETTING = "AdminSamlServiceProvider";
+	variables.ADMIN_SAML_GROUP_SETTING = "AdminSamlGroupName";
 	// "Edit LDAP Configuration" dialog fields (Security > Administrator > LDAP). Each one maps to a single
 	// key in coldfusion.server.SecurityService.getAdminLdapConfiguration()'s returned struct, and the
 	// corresponding positional argument in setAdminLdapConfiguration() -- confirmed by live sentinel-value
@@ -1131,6 +1134,9 @@ component output="false" {
 		try {
 			var ss = getSecurityService();
 		switch(lCase(trim(arguments.settingName))){
+				case "adminsamlprerequisites":
+				case "adminsamlteststate":
+					return serializeJSON(getAdministratorSamlPrerequisites());
 			case lCase(variables.ALLOW_CONCURRENT_ADMIN_LOGIN_SETTING):
 				return formatBooleanSettingValue(ss.isAllowConcurrentAdminLogin());
 			case lCase(variables.ADMIN_USER_ID_REQUIRED_SETTING):
@@ -1142,6 +1148,12 @@ component output="false" {
 			case lCase(variables.EXTERNAL_AUTH_SAML_SETTING):
 			case lCase(variables.EXTERNAL_AUTH_LDAP_SETTING):
 				return normalizeExternalAuthValue(ss.getExternalAuth());
+				case lCase(variables.ADMIN_SAML_IDP_SETTING):
+				case lCase(variables.ADMIN_SAML_SP_SETTING):
+				case lCase(variables.ADMIN_SAML_GROUP_SETTING):
+					var samlConfig = getAdminSamlConfigStruct(ss);
+					var samlKey = getAdminSamlFieldKey(arguments.settingName);
+					return structKeyExists(samlConfig, samlKey) ? trim("" & samlConfig[samlKey]) : "";
 			case lCase(variables.LDAP_HOST_SETTING):
 			case lCase(variables.LDAP_TCP_PORT_SETTING):
 			case lCase(variables.LDAP_USER_BIND_DN_SETTING):
@@ -1197,7 +1209,8 @@ component output="false" {
 	}
 
 	private boolean function isNonBooleanAdministratorSetting(required string settingName){
-		return isExternalAuthTargetSetting(arguments.settingName) OR isLdapConfigFieldSetting(arguments.settingName);
+		return isExternalAuthTargetSetting(arguments.settingName) OR isLdapConfigFieldSetting(arguments.settingName)
+			OR isAdministratorSamlFieldSetting(arguments.settingName) OR compareNoCase(arguments.settingName, "AdminSamlTestState") EQ 0;
 	}
 
 	public string function setAdministratorSetting(required string settingName, required any settingValue){
@@ -1214,6 +1227,12 @@ component output="false" {
 		try {
 			var ss = getSecurityService();
 		switch(lCase(trim(arguments.settingName))){
+				case "adminsamlteststate":
+					if(compareNoCase(trim("" & arguments.settingValue), "prepare") EQ 0)
+						prepareAdministratorSamlTest(ss);
+					else
+						restoreAdministratorSamlState(ss, deserializeJSON(arguments.settingValue));
+					break;
 			case lCase(variables.ALLOW_CONCURRENT_ADMIN_LOGIN_SETTING):
 				ss.setAllowConcurrentAdminLogin(boolValue);
 				break;
@@ -1227,6 +1246,21 @@ component output="false" {
 			case lCase(variables.EXTERNAL_AUTH_LDAP_SETTING):
 				setExternalAuthType(ss, arguments.settingValue);
 				break;
+				case lCase(variables.ADMIN_SAML_IDP_SETTING):
+				case lCase(variables.ADMIN_SAML_SP_SETTING):
+				case lCase(variables.ADMIN_SAML_GROUP_SETTING):
+					var prerequisites = getAdministratorSamlPrerequisites();
+					assertAdministratorSamlPrerequisites(prerequisites);
+					var samlKey = getAdminSamlFieldKey(arguments.settingName);
+					var samlValue = trim("" & arguments.settingValue);
+					if(NOT len(samlValue))
+						throw(message="Administrator SAML field must not be empty", type="CCSTest.ConfigError");
+					if(samlKey NEQ "groupName" AND NOT arrayFindNoCase(prerequisites[samlKey & "s"], samlValue))
+						throw(message="Administrator SAML provider is not configured on this node", type="CCSTest.PrerequisiteMissing");
+					var samlConfig = getAdminSamlConfigStruct(ss);
+					samlConfig[samlKey] = samlValue;
+					ss.setExternalAuth("SAML", samlConfig);
+					break;
 			case lCase(variables.LDAP_HOST_SETTING):
 			case lCase(variables.LDAP_TCP_PORT_SETTING):
 			case lCase(variables.LDAP_USER_BIND_DN_SETTING):
@@ -1383,6 +1417,8 @@ component output="false" {
 	}
 
 	public string function getNewSetValueForSetting(required string settingName, any currentValue = ""){
+		if(isAdministratorSamlFieldSetting(arguments.settingName))
+			return getAdministratorSamlNextValue(arguments.settingName, arguments.currentValue);
 		if(isUserManagerSetting(arguments.settingName))
 			return getUserManagerUtil().getNewSetValueForSetting(arguments.settingName, arguments.currentValue);
 		if(isAllowedIpSetting(arguments.settingName))
@@ -1469,6 +1505,24 @@ component output="false" {
 	public boolean function scalarValuesMatch(required any expectedValue, required any actualValue, string settingName = ""){
 		if(findNoCase("set FAILED", trim("" & arguments.actualValue)))
 			return false;
+		if(compareNoCase(arguments.settingName, "AdminSamlTestState") EQ 0){
+			if(NOT isJSON(arguments.actualValue))
+				return false;
+			var actualState = deserializeJSON(arguments.actualValue);
+			if(compareNoCase(trim("" & arguments.expectedValue), "prepare") EQ 0){
+				try {
+					assertAdministratorSamlPrerequisites(actualState);
+					return arrayFindNoCase(actualState.idpNames, "ccsTestIdpDef") GT 0
+						AND arrayFindNoCase(actualState.idpNames, "ccsTestIdpXml") GT 0
+						AND arrayFindNoCase(actualState.spNames, "ccsTestSpAdd") GT 0
+						AND arrayFindNoCase(actualState.spNames, "ccsTestSpGen") GT 0;
+				}
+				catch(any exception){ return false; }
+			}
+			return isJSON(arguments.expectedValue) AND administratorSamlStatesMatch(deserializeJSON(arguments.expectedValue), actualState);
+		}
+		if(isAdministratorSamlFieldSetting(arguments.settingName))
+			return compare(trim("" & arguments.expectedValue), trim("" & arguments.actualValue)) EQ 0;
 		if(isUserManagerSetting(arguments.settingName))
 			return getUserManagerUtil().scalarValuesMatch(arguments.expectedValue, arguments.actualValue, arguments.settingName);
 		if(isAllowedIpSetting(arguments.settingName))
@@ -1513,6 +1567,8 @@ component output="false" {
 	}
 
 	public string function formatDisplayValue(required string settingName, required any value){
+		if(compareNoCase(arguments.settingName, "AdminSamlTestState") EQ 0)
+			return "(Administrator authentication state)";
 		if(isUserManagerSetting(arguments.settingName))
 			return getUserManagerUtil().formatDisplayValue(arguments.settingName, arguments.value);
 		if(isAllowedIpSetting(arguments.settingName))
@@ -1525,7 +1581,7 @@ component output="false" {
 			return getSettingsUtil().formatDisplayValue(arguments.settingName, arguments.value);
 		if(isLdapConfigBooleanFieldSetting(arguments.settingName))
 			return formatBooleanSettingValue(arguments.value) EQ "true" ? "Enabled" : "Disabled";
-		if(isLdapConfigFieldSetting(arguments.settingName)){
+		if(isLdapConfigFieldSetting(arguments.settingName) OR isAdministratorSamlFieldSetting(arguments.settingName)){
 			// formatBooleanSettingValue() below calls toBoolean(), which throws on plain strings like
 			// "127.0.0.1" or "test" -- these fields are never boolean, so return before reaching it.
 			var text = trim("" & arguments.value);
@@ -1697,6 +1753,143 @@ component output="false" {
 			default:
 				arguments.ss.setExternalAuth("None", structNew());
 		}
+	}
+
+	public boolean function isAdministratorSamlFieldSetting(required string settingName){
+		return listFindNoCase(variables.ADMIN_SAML_IDP_SETTING & "," & variables.ADMIN_SAML_SP_SETTING & "," & variables.ADMIN_SAML_GROUP_SETTING,
+			trim(arguments.settingName)) GT 0;
+	}
+
+	public struct function getAdministratorSamlPrerequisites(){
+		var ss = getSecurityService();
+		return {
+			authType = normalizeExternalAuthValue(ss.getExternalAuth()),
+			config = getAdminSamlConfigStruct(ss),
+			idpNames = getIdpUtil().getConfiguredAliases(),
+			spNames = getSpUtil().getConfiguredAliases()
+		};
+	}
+
+	private void function prepareAdministratorSamlTest(required any ss){
+		var idpUtil = getIdpUtil();
+		var spUtil = getSpUtil();
+		idpUtil.addTestIdpForSetting("IdpFromSamlDefinition");
+		idpUtil.addTestIdpForSetting("IdpFromXmlFile");
+		spUtil.addTestSpForSetting("SpAdd");
+		spUtil.addTestSpForSetting("SpGenerate");
+		var config = buildAdministratorSamlTestConfig(getAdministratorSamlPrerequisites());
+		var admin = loginAdmin();
+		try {
+			arguments.ss.setExternalAuth("SAML", config);
+		}
+		finally { logoutAdmin(admin); }
+	}
+
+	private void function restoreAdministratorSamlState(required any ss, required struct originalState){
+		if(NOT structKeyExists(arguments.originalState, "authType") OR NOT structKeyExists(arguments.originalState, "config")
+			OR NOT isStruct(arguments.originalState.config) OR NOT structKeyExists(arguments.originalState, "idpNames")
+			OR NOT isArray(arguments.originalState.idpNames) OR NOT structKeyExists(arguments.originalState, "spNames")
+			OR NOT isArray(arguments.originalState.spNames) OR NOT listFindNoCase("NONE,LDAP,SAML", arguments.originalState.authType))
+			throw(message="Invalid Administrator authentication snapshot", type="CCSTest.ConfigError");
+		if(NOT structIsEmpty(arguments.originalState.config))
+			arguments.ss.setExternalAuth("SAML", arguments.originalState.config);
+		if(normalizeExternalAuthValue(arguments.originalState.authType) NEQ "SAML")
+			arguments.ss.setExternalAuth(normalizeExternalAuthValue(arguments.originalState.authType) EQ "LDAP" ? "LDAP" : "None", structNew());
+		if(structIsEmpty(arguments.originalState.config))
+			arguments.ss.deleteAdminSamlConfig();
+		for(var alias in ["ccsTestIdpDef", "ccsTestIdpXml"]){
+			if(NOT arrayFindNoCase(arguments.originalState.idpNames, alias))
+				getIdpUtil().removeTestIdp(alias);
+		}
+		for(var alias in ["ccsTestSpAdd", "ccsTestSpGen"]){
+			if(NOT arrayFindNoCase(arguments.originalState.spNames, alias))
+				getSpUtil().removeTestSp(alias);
+		}
+	}
+
+	public boolean function administratorSamlStatesMatch(required struct expectedState, required struct actualState){
+		if(normalizeExternalAuthValue(arguments.expectedState.authType) NEQ normalizeExternalAuthValue(arguments.actualState.authType)
+			OR structCount(arguments.expectedState.config) NEQ structCount(arguments.actualState.config))
+			return false;
+		for(var key in arguments.expectedState.config){
+			if(NOT structKeyExists(arguments.actualState.config, key)
+				OR compare(serializeJSON(arguments.expectedState.config[key]), serializeJSON(arguments.actualState.config[key])) NEQ 0)
+				return false;
+		}
+		for(var field in ["idpNames", "spNames"]){
+			var expectedAliases = duplicate(arguments.expectedState[field]);
+			var actualAliases = duplicate(arguments.actualState[field]);
+			arraySort(expectedAliases, "textnocase");
+			arraySort(actualAliases, "textnocase");
+			if(compare(serializeJSON(expectedAliases), serializeJSON(actualAliases)) NEQ 0)
+				return false;
+		}
+		return true;
+	}
+
+	public struct function buildAdministratorSamlTestConfig(required struct prerequisites){
+		var config = duplicate(arguments.prerequisites.config);
+		for(var fieldKey in ["idpName", "spName"]){
+			var providers = duplicate(arguments.prerequisites[fieldKey & "s"]);
+			arraySort(providers, "textnocase");
+			if(NOT arrayLen(providers))
+				throw(message="Administrator SAML test setup requires a configured #fieldKey#", type="CCSTest.PrerequisiteMissing");
+			if(NOT structKeyExists(config, fieldKey) OR NOT arrayFindNoCase(providers, config[fieldKey]))
+				config[fieldKey] = providers[1];
+		}
+		if(NOT structKeyExists(config, "groupName") OR NOT len(trim("" & config.groupName)))
+			config.groupName = "ccssuite_admin_group";
+		return config;
+	}
+
+	public void function assertAdministratorSamlPrerequisites(required struct prerequisites){
+		var ready = arguments.prerequisites.authType EQ "SAML";
+		for(var key in ["idpName", "spName", "groupName"])
+			ready = ready AND structKeyExists(arguments.prerequisites.config, key)
+				AND len(trim("" & arguments.prerequisites.config[key])) GT 0;
+		if(ready)
+			ready = arrayFindNoCase(arguments.prerequisites.idpNames, arguments.prerequisites.config.idpName) GT 0
+				AND arrayFindNoCase(arguments.prerequisites.spNames, arguments.prerequisites.config.spName) GT 0;
+		if(NOT ready)
+			throw(message="Administrator SAML test setup is incomplete: the temporary SAML pairing and provider definitions must be prepared before field writes.",
+				type="CCSTest.PrerequisiteMissing");
+	}
+
+	public string function getAdministratorSamlNextValue(required string settingName, required any currentValue, array providerNames){
+		if(arguments.settingName EQ variables.ADMIN_SAML_GROUP_SETTING)
+			return compare(trim("" & arguments.currentValue), "ccssuite_admin_group") EQ 0 ? "ccssuite_admin_group_updated" : "ccssuite_admin_group";
+		var fieldKey = getAdminSamlFieldKey(arguments.settingName);
+		var providers = structKeyExists(arguments, "providerNames") ? arguments.providerNames
+			: getAdministratorSamlPrerequisites()[fieldKey & "s"];
+		arraySort(providers, "textnocase");
+		for(var provider in providers){
+			if(compareNoCase(provider, trim("" & arguments.currentValue)) NEQ 0)
+				return provider;
+		}
+		throw(message="Administrator SAML test prerequisite missing: a second existing #fieldKey# shared by participating nodes is required. No provider was created.", type="CCSTest.PrerequisiteMissing");
+	}
+
+	private struct function getAdminSamlConfigStruct(required any ss){
+		var result = {};
+		try {
+			var source = arguments.ss.getAdminSamlConfig();
+			for(var key in source)
+				result[key] = source[key];
+		}
+		catch(any exception){
+			if(NOT findNoCase("Saml Configuration have no value", exception.message))
+				rethrow;
+		}
+		return result;
+	}
+
+	private string function getAdminSamlFieldKey(required string settingName){
+		switch(lCase(trim(arguments.settingName))){
+			case lCase(variables.ADMIN_SAML_IDP_SETTING): return "idpName";
+			case lCase(variables.ADMIN_SAML_SP_SETTING): return "spName";
+			case lCase(variables.ADMIN_SAML_GROUP_SETTING): return "groupName";
+		}
+		throw(message="Unsupported Administrator SAML field: #arguments.settingName#", type="CCSTest.ConfigError");
 	}
 
 	private boolean function isLdapConfigFieldSetting(required string settingName){

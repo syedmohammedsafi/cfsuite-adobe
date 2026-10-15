@@ -1132,6 +1132,74 @@ component output="false" {
 		return filtered;
 	}
 
+	public struct function runAdministratorSamlSyncTest(
+		required any testDriver,
+		required string settingName,
+		required string scriptPath,
+		required struct syncTestResult
+	){
+		var secUtil = new cfsuite.ccssuite.utils.securityConfigUtil().init();
+		var stUtil = new cfsuite.ccssuite.utils.serverSettingsTestUtil().init();
+		if(NOT secUtil.isAdministratorSamlFieldSetting(arguments.settingName))
+			throw(message="Unsupported Administrator SAML test setting", type="CCSTest.ConfigError");
+		stUtil.initializeCcsNodeConfig("all");
+		var stateFrame = initSecurityTestFrame(arguments.testDriver, "AdminSamlTestState", arguments.scriptPath, false);
+		var originalStates = stUtil.collectPresetValuesFromFrame(stateFrame);
+		if(structIsEmpty(originalStates))
+			throw(message="No reachable Administrator SAML test nodes", type="CCSTest.PrerequisiteMissing");
+		for(var nodeKey in originalStates){
+			if(NOT isJSON(originalStates[nodeKey]))
+				throw(message="Unable to capture Administrator authentication state on #nodeKey#", type="CCSTest.ConfigError");
+		}
+		arguments.syncTestResult.samlStateFrame = stateFrame;
+		arguments.syncTestResult.samlOriginalStates = originalStates;
+		arguments.syncTestResult.settingName = arguments.settingName;
+		arguments.syncTestResult.scriptPath = arguments.scriptPath;
+		arguments.syncTestResult.apiArea = "administrator";
+		for(var nodeKey in originalStates){
+			if(NOT arguments.testDriver.applySecuritySettingOnSingleNodeVerified(stateFrame, nodeKey, "prepare", "AdminSamlTestState", "administrator"))
+				throw(message="Unable to prepare temporary Administrator SAML configuration on #nodeKey#", type="CCSTest.ConfigError");
+		}
+		var prerequisiteValues = stUtil.collectPresetValuesFromFrame(
+			initSecurityTestFrame(arguments.testDriver, "AdminSamlPrerequisites", arguments.scriptPath, false)
+		);
+		var sharedIdps = [];
+		var sharedSps = [];
+		var firstNode = true;
+		for(var nodeKey in prerequisiteValues){
+			var prerequisites = deserializeJSON(prerequisiteValues[nodeKey]);
+			secUtil.assertAdministratorSamlPrerequisites(prerequisites);
+			if(firstNode){
+				sharedIdps = duplicate(prerequisites.idpNames);
+				sharedSps = duplicate(prerequisites.spNames);
+				firstNode = false;
+			}
+			else {
+				sharedIdps = sharedIdps.filter(function(alias){ return arrayFindNoCase(prerequisites.idpNames, alias) GT 0; });
+				sharedSps = sharedSps.filter(function(alias){ return arrayFindNoCase(prerequisites.spNames, alias) GT 0; });
+			}
+		}
+		if(firstNode)
+			throw(message="No reachable Administrator SAML test nodes", type="CCSTest.PrerequisiteMissing");
+		var frame = initSecurityTestFrame(arguments.testDriver, arguments.settingName, arguments.scriptPath, false);
+		var currentValue = stUtil.getPresetValueFromFrame(frame, arguments.settingName);
+		var newValue = secUtil.getAdministratorSamlNextValue(arguments.settingName, currentValue,
+			arguments.settingName EQ "AdminSamlIdentityProvider" ? sharedIdps : sharedSps);
+		arguments.syncTestResult.initedTestFrame = frame;
+		arguments.syncTestResult.originalValue = currentValue;
+		arguments.syncTestResult.existingValues = stUtil.collectPresetValuesFromFrame(frame);
+		arguments.syncTestResult.settingName = arguments.settingName;
+		arguments.syncTestResult.scriptPath = arguments.scriptPath;
+		arguments.syncTestResult.apiArea = "administrator";
+		writeOutput("updating #arguments.settingName# to: #encodeForHTML(newValue)#<br>");
+		var syncResult = stUtil.runSyncTest(arguments.testDriver, frame, arguments.settingName, newValue);
+		var rows = buildSecurityVerificationRows(syncResult.postSyncFrame, arguments.settingName, newValue, true);
+		writeSyncVerificationTable(rows, arguments.settingName);
+		arguments.syncTestResult.passed = allSameClusterRowsPassed(rows);
+		arguments.syncTestResult.syncResult = syncResult;
+		return arguments.syncTestResult;
+	}
+
 	public struct function runAdministratorSyncTest(
 		required any testDriver,
 		required string settingName,
@@ -1257,6 +1325,24 @@ component output="false" {
 		if(apiArea EQ "spconfiguration"){
 			cleanupSpConfigurationAfterTest(arguments.testDriver, arguments.syncTestResult);
 			application.ccsTestNodesScope = "currentPort";
+			return;
+		}
+		if(structKeyExists(arguments.syncTestResult, "samlOriginalStates")){
+			stUtil.initializeCcsNodeConfig("all");
+			var restored = true;
+			try {
+				for(var nodeKey in arguments.syncTestResult.samlOriginalStates){
+					try {
+						if(NOT arguments.testDriver.applySecuritySettingOnSingleNodeVerified(arguments.syncTestResult.samlStateFrame, nodeKey,
+							arguments.syncTestResult.samlOriginalStates[nodeKey], "AdminSamlTestState", "administrator"))
+							restored = false;
+					}
+					catch(any exception){ restored = false; }
+				}
+				if(NOT restored)
+					throw(message="Administrator SAML cleanup incomplete: verify authentication mode, saved pairing, and temporary providers on the test nodes.", type="CCSTest.RestoreFailed");
+			}
+			finally { application.ccsTestNodesScope = "currentPort"; }
 			return;
 		}
 		if(NOT structKeyExists(arguments.syncTestResult, "originalValue"))

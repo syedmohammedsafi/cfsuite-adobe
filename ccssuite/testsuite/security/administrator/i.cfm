@@ -52,11 +52,25 @@
 
 
 
-<h3>Not in testsuite (no toggle Admin API)</h3>
+<h3>SAML field sync tests</h3>
+
+<p>These tests prepare temporary SAML providers and a pairing automatically, including when External Authentication is NONE. During the test, Administrator login temporarily uses SAML. Finally, each node's original authentication mode and saved pairing are restored, and only providers absent before the test are removed. Run on disposable test instances.</p>
+
+<ul>
+	<li><a href="samlIdentityProvider.cfm">Identity Provider (samlIDP)</a></li>
+	<li><a href="samlServiceProvider.cfm">Service Provider (samlSP)</a></li>
+	<li><a href="samlGroupName.cfm">SAML groupName alias (samlGroup)</a></li>
+</ul>
+
+<h3>Not automated</h3>
 
 <table border="1" cellpadding="6" cellspacing="0">
 
 	<tr><th>Setting</th><th>Syncs?</th><th>Reason not automated</th></tr>
+
+	<tr><td>Old / New / Confirm Password (cfadmin_oldpassword, cfadmin_Newpassword, cfadmin_NewpasswordConfirm)</td><td>No</td><td>These are inputs to one password-change operation, not three configuration settings. Changing the root password can invalidate suite authentication and prevent restoration; no automatic password changes are performed.</td></tr>
+
+	<tr><td>New Seed (seed)</td><td>No</td><td>Rotates encryption key material. Not a CCS setting toggle; changing it can affect encrypted credentials. No automatic seed changes are performed.</td></tr>
 
 	<tr><td>Root administrator username</td><td>Partial</td><td>No public Admin API setter; sensitive partial sync</td></tr>
 
