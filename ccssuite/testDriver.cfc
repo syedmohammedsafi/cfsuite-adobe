@@ -454,7 +454,7 @@ component output="true" displayname=""  {
 		var isEncryptedOnDiskSetting = (syncFrameApiArea EQ "solrserver" AND lCase(trim(syncFrameSettingName)) EQ "password")
 			OR (syncFrameApiArea EQ "administrator" AND lCase(trim(syncFrameSettingName)) EQ lCase("LdapUserBindPassword"));
 
-		if(NOT listFindNoCase("mail,restservices", syncFrameApiArea) AND NOT isEncryptedOnDiskSetting)
+		if(NOT listFindNoCase("mail", syncFrameApiArea) AND NOT isEncryptedOnDiskSetting)
 			return serializeJSON(arguments.postSyncFrame) EQ serializeJSON(arguments.expectedPostSetFrame)
 
 		// Mail settings sync via CCS on an unpredictable schedule -- sometimes a peer node picks up

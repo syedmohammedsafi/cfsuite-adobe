@@ -48,8 +48,8 @@ component output="true" {
 		// corrupted a peer's live "ccs" mapping, so this suite deliberately never active-pushes it
 		// and never expects a peer to pick it up. Without this, the peer row showed "Pending sync"
 		// (implying CCS will eventually catch up), which is inaccurate — it never does.
-		if(lCase(trim("" & arguments.apiArea)) EQ "restservices")
-			return true;
+		// if(lCase(trim("" & arguments.apiArea)) EQ "restservices")
+		// 	return true;
 		return false;
 	}
 
@@ -1856,7 +1856,7 @@ component output="true" {
 		var instanceLocalArea = isInstanceLocalApiArea(arguments.apiArea, settingName);
 		var apiUtil = new cfsuite.ccssuite.utils.serverSettingsApiUtil().init();
 		var requireCacheSync = (lCase(arguments.apiArea) EQ "caching"
-			OR listFindNoCase("mappings,scheduledtasks,fontmanagement,datasources,systemprobes", arguments.apiArea)
+			OR listFindNoCase("mappings,scheduledtasks,fontmanagement,datasources,systemprobes,restservices", arguments.apiArea)
 			OR (lCase(arguments.apiArea) EQ "memoryvariables" AND new cfsuite.ccssuite.utils.memoryVariablesConfigUtil().init().isStorageSetting(settingName)))
 			AND (NOT structKeyExists(application, "ccsTestNodesScope") OR application.ccsTestNodesScope EQ "all");
 
