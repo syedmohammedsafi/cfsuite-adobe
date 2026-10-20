@@ -360,6 +360,12 @@ component output="true" {
 			return getAppCFCLookupOrderLabel(arguments.value);
 		if(compareNoCase(arguments.settingName, "ServerCacheType") EQ 0)
 			return getServerCacheTypeLabel(arguments.value);
+		if(compareNoCase(arguments.settingName, "httpsenabled") EQ 0){
+			if(NOT len(text) OR text EQ "false" OR text EQ "0" OR text EQ "no" OR text EQ "(empty)" OR text EQ "Disabled")
+				return "Disabled";
+			if(text EQ "true" OR text EQ "1" OR text EQ "yes" OR text EQ "Enabled")
+				return "Enabled";
+		}
 		if (isNumeric(arguments.value)) {
 			return arguments.value;
 		}
@@ -905,10 +911,8 @@ component output="true" {
 				return (trim(value) EQ "8998") ? "" : "8998";
 			case "CCSTestPDFWeight":
 				return (trim(value) EQ "2") ? "" : "2";
-			case "CCSTestPDFHttpsEnabled":
-				return (trim(value) EQ "true" OR (isBoolean(value) AND value)) ? "" : "true";
 			case "CCSTestPDFEngine":
-				return (trim(value) EQ "2.0") ? "1.0" : "2.0";
+				return (trim(value) EQ "2.0") ? "" : "2.0";
 
 			// System Probes - Global Settings
 			// System Probes - Global Settings

@@ -1268,6 +1268,8 @@ component output="true" displayname=""  {
 	private string function formatRollbackValue(required any value, string settingName = ""){
 		if(listFindNoCase("redisCacheStoragePassword,sessionStoragePassword", arguments.settingName))
 			return "[redacted]";
+		if(compareNoCase(arguments.settingName, "httpsenabled") EQ 0 AND (NOT len(trim("" & arguments.value)) OR trim("" & arguments.value) EQ "false"))
+			return "Disabled";
 		var text = trim("" & arguments.value);
 		if(NOT len(text) OR text EQ "|")
 			return "(empty)";

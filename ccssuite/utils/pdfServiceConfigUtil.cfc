@@ -347,7 +347,6 @@ component output="false" {
 			case "weight":
 				return getPDFWeightSetting("CCSTestPDFWeight");
 
-			case "ccstestpdfhttpsenabled":
 			case "httpsenabled":
 			case "ishttps":
 				return getPDFHttpsEnabledSetting("CCSTestPDFHttpsEnabled");
@@ -380,7 +379,6 @@ component output="false" {
 			case "weight":
 				return setPDFWeightSetting("CCSTestPDFWeight", arguments.settingValue);
 
-			case "ccstestpdfhttpsenabled":
 			case "httpsenabled":
 			case "ishttps":
 				return setPDFHttpsEnabledSetting("CCSTestPDFHttpsEnabled", arguments.settingValue);

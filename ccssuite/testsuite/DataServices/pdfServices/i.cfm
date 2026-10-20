@@ -9,7 +9,7 @@
 		<li><a href="port.cfm">Port</a></li>
 		<li><a href="weight.cfm">Weight</a></li>
 		<li><a href="httpsEnabled.cfm">HTTPS Enabled</a></li>
-		<li><a href="engine.cfm">Engine (1.0 WebKit / 2.0 PdfReactor)</a></li>
+		<li><a href="engine.cfm">Engine</a></li>
 	</ul>
 
 	<h3>Data List</h3>

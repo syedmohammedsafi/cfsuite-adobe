@@ -1,13 +1,13 @@
 <!---
 * @file  httpsEnabled.cfm
-* @description Add/Edit PDF Service - HTTPS Enabled — create, verify sync across nodes, then remove, using fixed test alias "CCSTestPDFHttpsEnabled".
+* @description Add/Edit PDF Service - HTTPS Enabled — create, verify sync across nodes, then remove, using setting name "httpsEnabled".
 --->
 <h2>Add/Edit PDF Service - HTTPS Enabled (create, verify sync, remove)</h2>
 <p>File: httpsEnabled.cfm</p>
 <br>
 <cftry>
 	<cfscript>
-		final SETTING_NAME = "CCSTestPDFHttpsEnabled";
+		final SETTING_NAME = "httpsEnabled";
 		testDvr = new cfsuite.ccssuite.testDriver();
 		stUtil = new cfsuite.ccssuite.utils.serverSettingsTestUtil().init();
 		syncTestResult = {};
