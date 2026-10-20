@@ -23,12 +23,59 @@ component output="false" {
                 return listFindNoCase("msAccessDsn,msAccessDatabaseFile,msAccessSystemDatabaseFile,msAccessUseDefaultUsername,msAccessUsername,msAccessPassword,msAccessDescription", arguments.settingName) GT 0;
         }
 
+        public boolean function isMssqlSetting(required string settingName){
+                return listFindNoCase("mssqlDsn,mssqlDatabase,mssqlHost,mssqlPort,mssqlUsername,mssqlPassword,mssqlDescription", arguments.settingName) GT 0;
+        }
+
+        public boolean function isMysqlSetting(required string settingName){
+                return listFindNoCase("mysqlDsn,mysqlDatabase,mysqlHost,mysqlPort,mysqlUsername,mysqlPassword,mysqlDescription", arguments.settingName) GT 0;
+        }
+
+        public boolean function isMysqlDataDirectSetting(required string settingName){
+                return listFindNoCase("mysqlDataDirectDsn,mysqlDataDirectDatabase,mysqlDataDirectHost,mysqlDataDirectPort,mysqlDataDirectUsername,mysqlDataDirectPassword,mysqlDataDirectDescription", arguments.settingName) GT 0;
+        }
+
+        public boolean function isOdbcSocketSetting(required string settingName){
+                return listFindNoCase("odbcSocketDsn,odbcSocketDatasource,odbcSocketTrustedConnection,odbcSocketUsername,odbcSocketPassword,odbcSocketDescription", arguments.settingName) GT 0;
+        }
+
+        public boolean function isOracleSetting(required string settingName){
+                return listFindNoCase("oracleDsn,oracleSid,oracleServiceName,oracleHost,oraclePort,oracleUsername,oraclePassword,oracleDescription", arguments.settingName) GT 0;
+        }
+
+        public boolean function isPostgresqlSetting(required string settingName){
+                return listFindNoCase("postgresqlDsn,postgresqlDatabase,postgresqlHost,postgresqlPort,postgresqlUsername,postgresqlPassword,postgresqlDescription", arguments.settingName) GT 0;
+        }
+
+        public boolean function isOtherSetting(required string settingName){
+                return listFindNoCase("otherDsn,otherJdbcUrl,otherDriverClass,otherDriverName,otherUsername,otherPassword,otherDescription", arguments.settingName) GT 0;
+        }
+
         public boolean function isPreparedDatasourceSetting(required string settingName){
                 return isDerbyClientSetting(arguments.settingName) OR isDerbyEmbeddedSetting(arguments.settingName)
-                        OR isDb2Setting(arguments.settingName) OR isJndiSetting(arguments.settingName) OR isMsAccessSetting(arguments.settingName);
+                        OR isDb2Setting(arguments.settingName) OR isJndiSetting(arguments.settingName)
+                        OR isMsAccessSetting(arguments.settingName) OR isMssqlSetting(arguments.settingName)
+                        OR isMysqlSetting(arguments.settingName) OR isMysqlDataDirectSetting(arguments.settingName)
+                        OR isOdbcSocketSetting(arguments.settingName) OR isOracleSetting(arguments.settingName)
+                        OR isPostgresqlSetting(arguments.settingName)
+                        OR isOtherSetting(arguments.settingName);
         }
 
         public string function getSettingLabel(required string settingName){
+                if(isPostgresqlSetting(arguments.settingName))
+                        return "PostgreSQL - " & new cfsuite.ccssuite.utils.postgresqlDatasourceConfigUtil().init().getField(arguments.settingName).label;
+                if(isOtherSetting(arguments.settingName))
+                        return "Other JDBC - " & new cfsuite.ccssuite.utils.otherDatasourceConfigUtil().init().getField(arguments.settingName).label;
+                if(isOracleSetting(arguments.settingName))
+                        return "Oracle - " & new cfsuite.ccssuite.utils.oracleDatasourceConfigUtil().init().getField(arguments.settingName).label;
+                if(isOdbcSocketSetting(arguments.settingName))
+                        return "ODBC Socket - " & new cfsuite.ccssuite.utils.odbcSocketDatasourceConfigUtil().init().getField(arguments.settingName).label;
+                if(isMysqlDataDirectSetting(arguments.settingName))
+                        return "MySQL (DataDirect) - " & new cfsuite.ccssuite.utils.mysqlDataDirectDatasourceConfigUtil().init().getField(arguments.settingName).label;
+                if(isMysqlSetting(arguments.settingName))
+                        return "MySQL - " & new cfsuite.ccssuite.utils.mysqlDatasourceConfigUtil().init().getField(arguments.settingName).label;
+                if(isMssqlSetting(arguments.settingName))
+                        return "Microsoft SQL Server - " & new cfsuite.ccssuite.utils.mssqlDatasourceConfigUtil().init().getField(arguments.settingName).label;
                 if(isMsAccessSetting(arguments.settingName))
                         return "Microsoft Access - " & new cfsuite.ccssuite.utils.msAccessDatasourceConfigUtil().init().getField(arguments.settingName).label;
                 if(isJndiSetting(arguments.settingName))
@@ -44,6 +91,20 @@ component output="false" {
         }
 
         public array function getSnapshotColumns(required string settingName){
+                if(isPostgresqlSetting(arguments.settingName))
+                        return new cfsuite.ccssuite.utils.postgresqlDatasourceConfigUtil().init().getColumns();
+                if(isOtherSetting(arguments.settingName))
+                        return new cfsuite.ccssuite.utils.otherDatasourceConfigUtil().init().getColumns();
+                if(isOracleSetting(arguments.settingName))
+                        return new cfsuite.ccssuite.utils.oracleDatasourceConfigUtil().init().getColumns();
+                if(isOdbcSocketSetting(arguments.settingName))
+                        return new cfsuite.ccssuite.utils.odbcSocketDatasourceConfigUtil().init().getColumns();
+                if(isMysqlDataDirectSetting(arguments.settingName))
+                        return new cfsuite.ccssuite.utils.mysqlDataDirectDatasourceConfigUtil().init().getColumns();
+                if(isMysqlSetting(arguments.settingName))
+                        return new cfsuite.ccssuite.utils.mysqlDatasourceConfigUtil().init().getColumns();
+                if(isMssqlSetting(arguments.settingName))
+                        return new cfsuite.ccssuite.utils.mssqlDatasourceConfigUtil().init().getColumns();
                 if(isMsAccessSetting(arguments.settingName))
                         return new cfsuite.ccssuite.utils.msAccessDatasourceConfigUtil().init().getColumns();
                 if(isJndiSetting(arguments.settingName))
@@ -59,6 +120,20 @@ component output="false" {
         }
 
         public string function getSeedState(required string settingName){
+                if(isPostgresqlSetting(arguments.settingName))
+                        return new cfsuite.ccssuite.utils.postgresqlDatasourceConfigUtil().init().getSeedState(arguments.settingName);
+                if(isOtherSetting(arguments.settingName))
+                        return new cfsuite.ccssuite.utils.otherDatasourceConfigUtil().init().getSeedState(arguments.settingName);
+                if(isOracleSetting(arguments.settingName))
+                        return new cfsuite.ccssuite.utils.oracleDatasourceConfigUtil().init().getSeedState(arguments.settingName);
+                if(isOdbcSocketSetting(arguments.settingName))
+                        return new cfsuite.ccssuite.utils.odbcSocketDatasourceConfigUtil().init().getSeedState(arguments.settingName);
+                if(isMysqlDataDirectSetting(arguments.settingName))
+                        return new cfsuite.ccssuite.utils.mysqlDataDirectDatasourceConfigUtil().init().getSeedState(arguments.settingName);
+                if(isMysqlSetting(arguments.settingName))
+                        return new cfsuite.ccssuite.utils.mysqlDatasourceConfigUtil().init().getSeedState(arguments.settingName);
+                if(isMssqlSetting(arguments.settingName))
+                        return new cfsuite.ccssuite.utils.mssqlDatasourceConfigUtil().init().getSeedState(arguments.settingName);
                 if(isMsAccessSetting(arguments.settingName))
                         return new cfsuite.ccssuite.utils.msAccessDatasourceConfigUtil().init().getSeedState(arguments.settingName);
                 if(isJndiSetting(arguments.settingName))
@@ -71,6 +146,20 @@ component output="false" {
         }
 
         public boolean function setMatches(required string settingName, required any preset, required any actual, required any requested){
+                if(isPostgresqlSetting(arguments.settingName))
+                        return new cfsuite.ccssuite.utils.postgresqlDatasourceConfigUtil().init().setMatches(arguments.settingName, arguments.preset, arguments.actual, arguments.requested);
+                if(isOtherSetting(arguments.settingName))
+                        return new cfsuite.ccssuite.utils.otherDatasourceConfigUtil().init().setMatches(arguments.settingName, arguments.preset, arguments.actual, arguments.requested);
+                if(isOracleSetting(arguments.settingName))
+                        return new cfsuite.ccssuite.utils.oracleDatasourceConfigUtil().init().setMatches(arguments.settingName, arguments.preset, arguments.actual, arguments.requested);
+                if(isOdbcSocketSetting(arguments.settingName))
+                        return new cfsuite.ccssuite.utils.odbcSocketDatasourceConfigUtil().init().setMatches(arguments.settingName, arguments.preset, arguments.actual, arguments.requested);
+                if(isMysqlDataDirectSetting(arguments.settingName))
+                        return new cfsuite.ccssuite.utils.mysqlDataDirectDatasourceConfigUtil().init().setMatches(arguments.settingName, arguments.preset, arguments.actual, arguments.requested);
+                if(isMysqlSetting(arguments.settingName))
+                        return new cfsuite.ccssuite.utils.mysqlDatasourceConfigUtil().init().setMatches(arguments.settingName, arguments.preset, arguments.actual, arguments.requested);
+                if(isMssqlSetting(arguments.settingName))
+                        return new cfsuite.ccssuite.utils.mssqlDatasourceConfigUtil().init().setMatches(arguments.settingName, arguments.preset, arguments.actual, arguments.requested);
                 if(isMsAccessSetting(arguments.settingName))
                         return new cfsuite.ccssuite.utils.msAccessDatasourceConfigUtil().init().setMatches(arguments.settingName, arguments.preset, arguments.actual, arguments.requested);
                 if(isJndiSetting(arguments.settingName))
@@ -100,6 +189,20 @@ component output="false" {
         }
 
         public string function getTestState(required string settingName){
+                if(isPostgresqlSetting(arguments.settingName))
+                        return new cfsuite.ccssuite.utils.postgresqlDatasourceConfigUtil().init().getTestState(arguments.settingName);
+                if(isOtherSetting(arguments.settingName))
+                        return new cfsuite.ccssuite.utils.otherDatasourceConfigUtil().init().getTestState(arguments.settingName);
+                if(isOracleSetting(arguments.settingName))
+                        return new cfsuite.ccssuite.utils.oracleDatasourceConfigUtil().init().getTestState(arguments.settingName);
+                if(isOdbcSocketSetting(arguments.settingName))
+                        return new cfsuite.ccssuite.utils.odbcSocketDatasourceConfigUtil().init().getTestState(arguments.settingName);
+                if(isMysqlDataDirectSetting(arguments.settingName))
+                        return new cfsuite.ccssuite.utils.mysqlDataDirectDatasourceConfigUtil().init().getTestState(arguments.settingName);
+                if(isMysqlSetting(arguments.settingName))
+                        return new cfsuite.ccssuite.utils.mysqlDatasourceConfigUtil().init().getTestState(arguments.settingName);
+                if(isMssqlSetting(arguments.settingName))
+                        return new cfsuite.ccssuite.utils.mssqlDatasourceConfigUtil().init().getTestState(arguments.settingName);
                 if(isMsAccessSetting(arguments.settingName))
                         return new cfsuite.ccssuite.utils.msAccessDatasourceConfigUtil().init().getTestState(arguments.settingName);
                 if(isJndiSetting(arguments.settingName))
@@ -114,6 +217,20 @@ component output="false" {
         }
 
         public boolean function configsMatch(required string settingName, required any expected, required any actual){
+                if(isPostgresqlSetting(arguments.settingName))
+                        return new cfsuite.ccssuite.utils.postgresqlDatasourceConfigUtil().init().configsMatch(arguments.settingName, arguments.expected, arguments.actual);
+                if(isOtherSetting(arguments.settingName))
+                        return new cfsuite.ccssuite.utils.otherDatasourceConfigUtil().init().configsMatch(arguments.settingName, arguments.expected, arguments.actual);
+                if(isOracleSetting(arguments.settingName))
+                        return new cfsuite.ccssuite.utils.oracleDatasourceConfigUtil().init().configsMatch(arguments.settingName, arguments.expected, arguments.actual);
+                if(isOdbcSocketSetting(arguments.settingName))
+                        return new cfsuite.ccssuite.utils.odbcSocketDatasourceConfigUtil().init().configsMatch(arguments.settingName, arguments.expected, arguments.actual);
+                if(isMysqlDataDirectSetting(arguments.settingName))
+                        return new cfsuite.ccssuite.utils.mysqlDataDirectDatasourceConfigUtil().init().configsMatch(arguments.settingName, arguments.expected, arguments.actual);
+                if(isMysqlSetting(arguments.settingName))
+                        return new cfsuite.ccssuite.utils.mysqlDatasourceConfigUtil().init().configsMatch(arguments.settingName, arguments.expected, arguments.actual);
+                if(isMssqlSetting(arguments.settingName))
+                        return new cfsuite.ccssuite.utils.mssqlDatasourceConfigUtil().init().configsMatch(arguments.settingName, arguments.expected, arguments.actual);
                 if(isMsAccessSetting(arguments.settingName))
                         return new cfsuite.ccssuite.utils.msAccessDatasourceConfigUtil().init().configsMatch(arguments.settingName, arguments.expected, arguments.actual);
                 if(isJndiSetting(arguments.settingName))
@@ -146,6 +263,20 @@ component output="false" {
         }
 
         public string function getSetting(required string settingName){
+                if(isPostgresqlSetting(arguments.settingName))
+                        return new cfsuite.ccssuite.utils.postgresqlDatasourceConfigUtil().init().getSetting(arguments.settingName);
+                if(isOtherSetting(arguments.settingName))
+                        return new cfsuite.ccssuite.utils.otherDatasourceConfigUtil().init().getSetting(arguments.settingName);
+                if(isOracleSetting(arguments.settingName))
+                        return new cfsuite.ccssuite.utils.oracleDatasourceConfigUtil().init().getSetting(arguments.settingName);
+                if(isOdbcSocketSetting(arguments.settingName))
+                        return new cfsuite.ccssuite.utils.odbcSocketDatasourceConfigUtil().init().getSetting(arguments.settingName);
+                if(isMysqlDataDirectSetting(arguments.settingName))
+                        return new cfsuite.ccssuite.utils.mysqlDataDirectDatasourceConfigUtil().init().getSetting(arguments.settingName);
+                if(isMysqlSetting(arguments.settingName))
+                        return new cfsuite.ccssuite.utils.mysqlDatasourceConfigUtil().init().getSetting(arguments.settingName);
+                if(isMssqlSetting(arguments.settingName))
+                        return new cfsuite.ccssuite.utils.mssqlDatasourceConfigUtil().init().getSetting(arguments.settingName);
                 if(isMsAccessSetting(arguments.settingName))
                         return new cfsuite.ccssuite.utils.msAccessDatasourceConfigUtil().init().getSetting(arguments.settingName);
                 if(isJndiSetting(arguments.settingName))
@@ -195,6 +326,20 @@ component output="false" {
         }
 
         public string function setSetting(required string settingName, required any settingValue){
+                if(isPostgresqlSetting(arguments.settingName))
+                        return new cfsuite.ccssuite.utils.postgresqlDatasourceConfigUtil().init().setSetting(arguments.settingName, arguments.settingValue);
+                if(isOtherSetting(arguments.settingName))
+                        return new cfsuite.ccssuite.utils.otherDatasourceConfigUtil().init().setSetting(arguments.settingName, arguments.settingValue);
+                if(isOracleSetting(arguments.settingName))
+                        return new cfsuite.ccssuite.utils.oracleDatasourceConfigUtil().init().setSetting(arguments.settingName, arguments.settingValue);
+                if(isOdbcSocketSetting(arguments.settingName))
+                        return new cfsuite.ccssuite.utils.odbcSocketDatasourceConfigUtil().init().setSetting(arguments.settingName, arguments.settingValue);
+                if(isMysqlDataDirectSetting(arguments.settingName))
+                        return new cfsuite.ccssuite.utils.mysqlDataDirectDatasourceConfigUtil().init().setSetting(arguments.settingName, arguments.settingValue);
+                if(isMysqlSetting(arguments.settingName))
+                        return new cfsuite.ccssuite.utils.mysqlDatasourceConfigUtil().init().setSetting(arguments.settingName, arguments.settingValue);
+                if(isMssqlSetting(arguments.settingName))
+                        return new cfsuite.ccssuite.utils.mssqlDatasourceConfigUtil().init().setSetting(arguments.settingName, arguments.settingValue);
                 if(isMsAccessSetting(arguments.settingName))
                         return new cfsuite.ccssuite.utils.msAccessDatasourceConfigUtil().init().setSetting(arguments.settingName, arguments.settingValue);
                 if(isJndiSetting(arguments.settingName))

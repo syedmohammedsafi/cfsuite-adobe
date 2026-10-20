@@ -11,6 +11,9 @@
 
 		settingName = (structKeyExists(url, "setting") and len(trim(url.setting))) ? trim(url.setting) : "";
 		apiArea = structKeyExists(url, "area") ? trim(url.area) : "";
+		datasourceConfigUtil = new cfsuite.ccssuite.utils.datasourceConfigUtil().init();
+		if(apiArea EQ "datasources" AND datasourceConfigUtil.isMysqlSetting(settingName))
+			new cfsuite.ccssuite.utils.mysqlDatasourceConfigUtil().init().requireConnectorJ();
 
 		cfcontent(type="text/plain", reset=true);
 		writeOutput(trim("" & new cfsuite.ccssuite.utils.ccsApiUtil().init().getSetting(settingName, apiArea, "DataServices")));

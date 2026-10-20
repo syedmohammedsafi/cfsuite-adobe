@@ -26,6 +26,10 @@ component output="true" {
 			var target = configUtil.getTestState(arguments.settingName);
 			if(configUtil.isJndiSetting(arguments.settingName))
 				new cfsuite.ccssuite.utils.jndiDatasourceConfigUtil().init().requireFixtureResources(arguments.settingName);
+			if(configUtil.isMysqlSetting(arguments.settingName))
+				new cfsuite.ccssuite.utils.mysqlDatasourceConfigUtil().init().requireConnectorJ();
+			if(configUtil.isOdbcSocketSetting(arguments.settingName))
+				new cfsuite.ccssuite.utils.odbcSocketDatasourceConfigUtil().init().requireFixtureResources(arguments.settingName);
 			writesStarted = true;
 						if(configUtil.isPreparedDatasourceSetting(arguments.settingName)){
 				var seed = configUtil.getSeedState(arguments.settingName);

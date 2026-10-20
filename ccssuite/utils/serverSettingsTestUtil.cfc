@@ -326,6 +326,20 @@ component output="true" {
 
 	public string function formatDisplayValue(required string settingName, required any value){
 		var text = trim("" & arguments.value);
+		if(new cfsuite.ccssuite.utils.datasourceConfigUtil().init().isPostgresqlSetting(arguments.settingName))
+			return new cfsuite.ccssuite.utils.postgresqlDatasourceConfigUtil().init().formatDisplayValue(arguments.settingName, arguments.value);
+		if(new cfsuite.ccssuite.utils.datasourceConfigUtil().init().isOtherSetting(arguments.settingName))
+			return new cfsuite.ccssuite.utils.otherDatasourceConfigUtil().init().formatDisplayValue(arguments.settingName, arguments.value);
+		if(new cfsuite.ccssuite.utils.datasourceConfigUtil().init().isOracleSetting(arguments.settingName))
+			return new cfsuite.ccssuite.utils.oracleDatasourceConfigUtil().init().formatDisplayValue(arguments.settingName, arguments.value);
+		if(new cfsuite.ccssuite.utils.datasourceConfigUtil().init().isOdbcSocketSetting(arguments.settingName))
+			return new cfsuite.ccssuite.utils.odbcSocketDatasourceConfigUtil().init().formatDisplayValue(arguments.settingName, arguments.value);
+		if(new cfsuite.ccssuite.utils.datasourceConfigUtil().init().isMysqlDataDirectSetting(arguments.settingName))
+			return new cfsuite.ccssuite.utils.mysqlDataDirectDatasourceConfigUtil().init().formatDisplayValue(arguments.settingName, arguments.value);
+		if(new cfsuite.ccssuite.utils.datasourceConfigUtil().init().isMysqlSetting(arguments.settingName))
+			return new cfsuite.ccssuite.utils.mysqlDatasourceConfigUtil().init().formatDisplayValue(arguments.settingName, arguments.value);
+		if(new cfsuite.ccssuite.utils.datasourceConfigUtil().init().isMssqlSetting(arguments.settingName))
+			return new cfsuite.ccssuite.utils.mssqlDatasourceConfigUtil().init().formatDisplayValue(arguments.settingName, arguments.value);
 		if(new cfsuite.ccssuite.utils.datasourceConfigUtil().init().isMsAccessSetting(arguments.settingName))
 			return new cfsuite.ccssuite.utils.msAccessDatasourceConfigUtil().init().formatDisplayValue(arguments.settingName, arguments.value);
 		if(new cfsuite.ccssuite.utils.datasourceConfigUtil().init().isJndiSetting(arguments.settingName))

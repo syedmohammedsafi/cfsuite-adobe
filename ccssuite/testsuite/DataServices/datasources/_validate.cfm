@@ -8,14 +8,15 @@ try {
         adminUtil.login(application.constants.CF_CONFIG);
         datasourceApi = createObject("component", "CFIDE.adminapi.datasource");
         datasources = datasourceApi.getDatasources();
-        result = {configurationWrites=false, methods=[], availableMethods=[], credentialMethods=[], derbyMetadata=[], embeddedMetadata=[], datasourceCount=structCount(datasources), datasourceKeys=[], driverMetadata={}};
+        result = {configurationWrites=false, methods=[], availableMethods=[], credentialMethods=[], derbyMetadata=[], embeddedMetadata=[], datasourceCount=structCount(datasources), datasourceKeys=[], driverMetadata={}, odbcDatasources=datasourceApi.getODBCDatasources(), odbcSocketMetadata=[]};
+        result.odbcDsnCount = isQuery(result.odbcDatasources) ? result.odbcDatasources.recordCount : 0;
         for(method in getMetadata(admin).functions){
                 if(reFindNoCase("encrypt|decrypt", method.name))
                         arrayAppend(result.credentialMethods, {name=method.name, parameters=method.parameters});
         }
         for(method in getMetadata(datasourceApi).functions){
                 arrayAppend(result.availableMethods, method.name);
-                if(listFindNoCase("setMSAccess,setJNDI,setDB2,setDerbyEmbedded,setDerbyClient,setMySQL,setMySQL5,setMySQL_DD,setMSSQL,setSQLServer,setPostgreSQL,deleteDatasource,getDatasources,getDrivers,verifyDatasource,verifyDSN", method.name))
+                if(listFindNoCase("setMSAccess,setJNDI,setDB2,setDerbyEmbedded,setDerbyClient,setMySQL,setMySQL5,setMySQL_DD,setMSSQL,setSQLServer,setOracle,setOther,setPostgreSQL,setPostGreSQL,setODBCSocket,deleteDatasource,getDatasources,getODBCDatasources,getDrivers,verifyDatasource,verifyDSN", method.name))
                         arrayAppend(result.methods, {name=method.name, parameters=method.parameters});
         }
         for(datasourceName in datasources){
@@ -45,6 +46,8 @@ try {
                                 shape.urlMapKeys = structKeyArray(datasource.urlmap);
                         arrayAppend(result.derbyMetadata, shape);
                 }
+                if(isStruct(datasource) AND structKeyExists(datasource, "driver") AND datasource.driver EQ "ODBCSocket")
+                        arrayAppend(result.odbcSocketMetadata, {dsn=datasourceName, keys=structKeyArray(datasource)});
         }
         apiUtil = new cfsuite.ccssuite.utils.ccsApiUtil().init();
         comparisonUtil = new cfsuite.ccssuite.utils.serverSettingsApiUtil().init();
@@ -271,6 +274,422 @@ try {
         if(db2Util.setMatches("db2Password", serializeJSON(db2PasswordPreset), serializeJSON(db2PasswordActual), db2PasswordTarget)
                 OR db2Util.setMatches("db2Password", "[]", serializeJSON(db2PasswordActual), db2PasswordTarget))
                 throw(message="Unchanged or unseeded DB2 password was accepted");
+        mssqlUtil = new cfsuite.ccssuite.utils.mssqlDatasourceConfigUtil().init();
+        for(mssqlField in mssqlUtil.getFields()){
+                mssqlTarget = mssqlUtil.getTestState(mssqlField.name);
+                if(NOT mssqlUtil.configsMatch(mssqlField.name, mssqlTarget, mssqlTarget)
+                        OR mssqlUtil.configsMatch(mssqlField.name, mssqlTarget, "[]")
+                        OR mssqlUtil.configsMatch(mssqlField.name, mssqlUtil.getSeedState(mssqlField.name), mssqlTarget))
+                        throw(message="Microsoft SQL Server field fixture comparison failed");
+                for(mssqlColumn in mssqlUtil.getColumns()){
+                        changed = deserializeJSON(mssqlTarget);
+                        changed[1][mssqlColumn] = "ccssuite-invalid-field";
+                        if(mssqlUtil.configsMatch(mssqlField.name, mssqlTarget, serializeJSON(changed)))
+                                throw(message="Microsoft SQL Server comparison ignored " & mssqlColumn);
+                }
+                mssqlRow = deserializeJSON(mssqlTarget)[1];
+                expectedDisplay = mssqlField.field EQ "password" ? "[redacted]" : mssqlRow[mssqlField.field];
+                if(compare(mssqlUtil.formatDisplayValue(mssqlField.name, mssqlTarget), expectedDisplay) NEQ 0
+                        OR mssqlUtil.formatDisplayValue(mssqlField.name, "[]") NEQ "Not registered"
+                        OR mssqlUtil.formatDisplayValue(mssqlField.name, "") NEQ "(unavailable)")
+                        throw(message="Microsoft SQL Server selected-field display failed");
+                invalidMssqlRow = duplicate(mssqlRow);
+                invalidMssqlRow.host = "ccssuite-invalid-host";
+                for(invalidMssqlValue in ["", "{}", serializeJSON([invalidMssqlRow]), serializeJSON([mssqlRow, mssqlRow])]){
+                        rejected = false;
+                        try {
+                                apiUtil.setSetting(mssqlField.name, invalidMssqlValue, "datasources", "DataServices");
+                        }
+                        catch(CCSTest.ConfigError expectedFailure){
+                                rejected = true;
+                        }
+                        if(NOT rejected)
+                                throw(message="Unsafe SQL Server setter value was accepted");
+                }
+                if(NOT isJSON(mssqlUtil.getSetting(mssqlField.name)))
+                        throw(message="SQL Server getter did not return JSON");
+        }
+        mssqlPasswordTarget = mssqlUtil.getTestState("mssqlPassword");
+        mssqlPasswordPreset = deserializeJSON(mssqlUtil.getSeedState("mssqlPassword"));
+        mssqlPasswordActual = deserializeJSON(mssqlPasswordTarget);
+        mssqlPasswordPreset[1].password = "sha256:" & repeatString("a", 64);
+        mssqlPasswordActual[1].password = "sha256:" & repeatString("b", 64);
+        if(NOT mssqlUtil.setMatches("mssqlPassword", serializeJSON(mssqlPasswordPreset), serializeJSON(mssqlPasswordActual), mssqlPasswordTarget))
+                throw(message="Changed SQL Server password fingerprint was rejected");
+        mssqlPasswordActual[1].password = mssqlPasswordPreset[1].password;
+        if(mssqlUtil.setMatches("mssqlPassword", serializeJSON(mssqlPasswordPreset), serializeJSON(mssqlPasswordActual), mssqlPasswordTarget)
+                OR mssqlUtil.setMatches("mssqlPassword", "[]", serializeJSON(mssqlPasswordActual), mssqlPasswordTarget))
+                throw(message="Unchanged or unseeded SQL Server password was accepted");
+        mysqlUtil = new cfsuite.ccssuite.utils.mysqlDatasourceConfigUtil().init();
+        for(mysqlField in mysqlUtil.getFields()){
+                mysqlTarget = mysqlUtil.getTestState(mysqlField.name);
+                if(NOT mysqlUtil.configsMatch(mysqlField.name, mysqlTarget, mysqlTarget)
+                        OR mysqlUtil.configsMatch(mysqlField.name, mysqlTarget, "[]")
+                        OR mysqlUtil.configsMatch(mysqlField.name, mysqlUtil.getSeedState(mysqlField.name), mysqlTarget))
+                        throw(message="MySQL field fixture comparison failed");
+                for(mysqlColumn in mysqlUtil.getColumns()){
+                        changed = deserializeJSON(mysqlTarget);
+                        changed[1][mysqlColumn] = "ccssuite-invalid-field";
+                        if(mysqlUtil.configsMatch(mysqlField.name, mysqlTarget, serializeJSON(changed)))
+                                throw(message="MySQL comparison ignored " & mysqlColumn);
+                }
+                mysqlRow = deserializeJSON(mysqlTarget)[1];
+                expectedDisplay = mysqlField.field EQ "password" ? "[redacted]" : mysqlRow[mysqlField.field];
+                if(compare(mysqlUtil.formatDisplayValue(mysqlField.name, mysqlTarget), expectedDisplay) NEQ 0
+                        OR mysqlUtil.formatDisplayValue(mysqlField.name, "[]") NEQ "Not registered"
+                        OR mysqlUtil.formatDisplayValue(mysqlField.name, "") NEQ "(unavailable)")
+                        throw(message="MySQL selected-field display failed");
+                invalidMysqlRow = duplicate(mysqlRow);
+                invalidMysqlRow.host = "ccssuite-invalid-host";
+                for(invalidMysqlValue in ["", "{}", serializeJSON([invalidMysqlRow]), serializeJSON([mysqlRow, mysqlRow])]){
+                        rejected = false;
+                        try {
+                                apiUtil.setSetting(mysqlField.name, invalidMysqlValue, "datasources", "DataServices");
+                        }
+                        catch(CCSTest.ConfigError expectedFailure){
+                                rejected = true;
+                        }
+                        if(NOT rejected)
+                                throw(message="Unsafe MySQL setter value was accepted");
+                }
+                if(NOT isJSON(mysqlUtil.getSetting(mysqlField.name)))
+                        throw(message="MySQL getter did not return JSON");
+        }
+        mysqlPasswordTarget = mysqlUtil.getTestState("mysqlPassword");
+        mysqlPasswordPreset = deserializeJSON(mysqlUtil.getSeedState("mysqlPassword"));
+        mysqlPasswordActual = deserializeJSON(mysqlPasswordTarget);
+        mysqlPasswordPreset[1].password = "sha256:" & repeatString("a", 64);
+        mysqlPasswordActual[1].password = "sha256:" & repeatString("b", 64);
+        if(NOT mysqlUtil.setMatches("mysqlPassword", serializeJSON(mysqlPasswordPreset), serializeJSON(mysqlPasswordActual), mysqlPasswordTarget))
+                throw(message="Changed MySQL password fingerprint was rejected");
+        mysqlPasswordActual[1].password = mysqlPasswordPreset[1].password;
+        if(mysqlUtil.setMatches("mysqlPassword", serializeJSON(mysqlPasswordPreset), serializeJSON(mysqlPasswordActual), mysqlPasswordTarget)
+                OR mysqlUtil.setMatches("mysqlPassword", "[]", serializeJSON(mysqlPasswordActual), mysqlPasswordTarget))
+                throw(message="Unchanged or unseeded MySQL password was accepted");
+        mysqlDataDirectUtil = new cfsuite.ccssuite.utils.mysqlDataDirectDatasourceConfigUtil().init();
+        for(mysqlDataDirectField in mysqlDataDirectUtil.getFields()){
+                mysqlDataDirectTarget = mysqlDataDirectUtil.getTestState(mysqlDataDirectField.name);
+                if(NOT mysqlDataDirectUtil.configsMatch(mysqlDataDirectField.name, mysqlDataDirectTarget, mysqlDataDirectTarget)
+                        OR mysqlDataDirectUtil.configsMatch(mysqlDataDirectField.name, mysqlDataDirectTarget, "[]")
+                        OR mysqlDataDirectUtil.configsMatch(mysqlDataDirectField.name,
+                                mysqlDataDirectUtil.getSeedState(mysqlDataDirectField.name), mysqlDataDirectTarget))
+                        throw(message="MySQL DataDirect field fixture comparison failed");
+                for(mysqlDataDirectColumn in mysqlDataDirectUtil.getColumns()){
+                        changed = deserializeJSON(mysqlDataDirectTarget);
+                        changed[1][mysqlDataDirectColumn] = "ccssuite-invalid-field";
+                        if(mysqlDataDirectUtil.configsMatch(mysqlDataDirectField.name, mysqlDataDirectTarget, serializeJSON(changed)))
+                                throw(message="MySQL DataDirect comparison ignored " & mysqlDataDirectColumn);
+                }
+                mysqlDataDirectRow = deserializeJSON(mysqlDataDirectTarget)[1];
+                expectedDisplay = mysqlDataDirectField.field EQ "password" ? "[redacted]" : mysqlDataDirectRow[mysqlDataDirectField.field];
+                if(compare(mysqlDataDirectUtil.formatDisplayValue(mysqlDataDirectField.name, mysqlDataDirectTarget), expectedDisplay) NEQ 0
+                        OR mysqlDataDirectUtil.formatDisplayValue(mysqlDataDirectField.name, "[]") NEQ "Not registered"
+                        OR mysqlDataDirectUtil.formatDisplayValue(mysqlDataDirectField.name, "") NEQ "(unavailable)")
+                        throw(message="MySQL DataDirect selected-field display failed");
+                invalidMySqlDataDirectRow = duplicate(mysqlDataDirectRow);
+                invalidMySqlDataDirectRow.host = "ccssuite-invalid-host";
+                for(invalidMySqlDataDirectValue in ["", "{}", serializeJSON([invalidMySqlDataDirectRow]),
+                        serializeJSON([mysqlDataDirectRow, mysqlDataDirectRow])]){
+                        rejected = false;
+                        try {
+                                apiUtil.setSetting(mysqlDataDirectField.name, invalidMySqlDataDirectValue, "datasources", "DataServices");
+                        }
+                        catch(CCSTest.ConfigError expectedFailure){
+                                rejected = true;
+                        }
+                        if(NOT rejected)
+                                throw(message="Unsafe MySQL DataDirect setter value was accepted");
+                }
+                if(NOT isJSON(mysqlDataDirectUtil.getSetting(mysqlDataDirectField.name)))
+                        throw(message="MySQL DataDirect getter did not return JSON");
+        }
+        mysqlDataDirectPasswordTarget = mysqlDataDirectUtil.getTestState("mysqlDataDirectPassword");
+        mysqlDataDirectPasswordPreset = deserializeJSON(mysqlDataDirectUtil.getSeedState("mysqlDataDirectPassword"));
+        mysqlDataDirectPasswordActual = deserializeJSON(mysqlDataDirectPasswordTarget);
+        mysqlDataDirectPasswordPreset[1].password = "sha256:" & repeatString("a", 64);
+        mysqlDataDirectPasswordActual[1].password = "sha256:" & repeatString("b", 64);
+        if(NOT mysqlDataDirectUtil.setMatches("mysqlDataDirectPassword", serializeJSON(mysqlDataDirectPasswordPreset),
+                serializeJSON(mysqlDataDirectPasswordActual), mysqlDataDirectPasswordTarget))
+                throw(message="Changed MySQL DataDirect password fingerprint was rejected");
+        mysqlDataDirectPasswordActual[1].password = mysqlDataDirectPasswordPreset[1].password;
+        if(mysqlDataDirectUtil.setMatches("mysqlDataDirectPassword", serializeJSON(mysqlDataDirectPasswordPreset),
+                serializeJSON(mysqlDataDirectPasswordActual), mysqlDataDirectPasswordTarget)
+                OR mysqlDataDirectUtil.setMatches("mysqlDataDirectPassword", "[]",
+                        serializeJSON(mysqlDataDirectPasswordActual), mysqlDataDirectPasswordTarget))
+                throw(message="Unchanged or unseeded MySQL DataDirect password was accepted");
+        odbcSocketUtil = new cfsuite.ccssuite.utils.odbcSocketDatasourceConfigUtil().init();
+        for(odbcSocketField in odbcSocketUtil.getFields()){
+                odbcSocketTarget = odbcSocketUtil.getTestState(odbcSocketField.name);
+                odbcSocketSeed = odbcSocketUtil.getSeedState(odbcSocketField.name);
+                if(NOT odbcSocketUtil.configsMatch(odbcSocketField.name, odbcSocketTarget, odbcSocketTarget)
+                        OR odbcSocketUtil.configsMatch(odbcSocketField.name, odbcSocketTarget, "[]")
+                        OR (odbcSocketField.name NEQ "odbcSocketDatasource" OR result.odbcDsnCount GTE 2)
+                                AND odbcSocketUtil.configsMatch(odbcSocketField.name, odbcSocketSeed, odbcSocketTarget))
+                        throw(message="ODBC Socket field fixture comparison failed");
+                for(odbcSocketColumn in odbcSocketUtil.getColumns()){
+                        changed = deserializeJSON(odbcSocketTarget);
+                        changed[1][odbcSocketColumn] = "ccssuite-invalid-field";
+                        if(odbcSocketUtil.configsMatch(odbcSocketField.name, odbcSocketTarget, serializeJSON(changed)))
+                                throw(message="ODBC Socket comparison ignored " & odbcSocketColumn);
+                }
+                odbcSocketRow = deserializeJSON(odbcSocketTarget)[1];
+                expectedDisplay = odbcSocketField.field EQ "password" ? "[redacted]"
+                        : (odbcSocketField.field EQ "UseTrustedConnection"
+                                ? (odbcSocketRow.UseTrustedConnection EQ "true" ? "Enabled" : "Disabled")
+                                : odbcSocketRow[odbcSocketField.field]);
+                if(compare(odbcSocketUtil.formatDisplayValue(odbcSocketField.name, odbcSocketTarget), expectedDisplay) NEQ 0
+                        OR odbcSocketUtil.formatDisplayValue(odbcSocketField.name, "[]") NEQ "Not registered"
+                        OR odbcSocketUtil.formatDisplayValue(odbcSocketField.name, "") NEQ "(unavailable)")
+                        throw(message="ODBC Socket selected-field display failed");
+                invalidOdbcSocketRow = duplicate(odbcSocketRow);
+                invalidOdbcSocketRow.datasource = "CCSSUITE_INVALID_ODBC_DSN";
+                for(invalidOdbcSocketValue in ["", "{}", serializeJSON([invalidOdbcSocketRow]),
+                        serializeJSON([odbcSocketRow, odbcSocketRow])]){
+                        rejected = false;
+                        try {
+                                apiUtil.setSetting(odbcSocketField.name, invalidOdbcSocketValue, "datasources", "DataServices");
+                        }
+                        catch(CCSTest.ConfigError expectedFailure){
+                                rejected = true;
+                        }
+                        if(NOT rejected)
+                                throw(message="Unsafe ODBC Socket setter value was accepted");
+                }
+                if(NOT isJSON(odbcSocketUtil.getSetting(odbcSocketField.name)))
+                        throw(message="ODBC Socket getter did not return JSON");
+        }
+        odbcSocketMetadata = {
+                DRIVER="ODBCSocket",
+                username="ccssuite_fixture_user",
+                password="fixture-password-original",
+                description="CCSSUITE reserved ODBC Socket fixture",
+                urlmap={datasource="CCSSUITE_MSACCESS_DSN", host="localhost", port=20014, UseTrustedConnection="false"}
+        };
+        normalizedOdbcSocket = odbcSocketUtil.normalizeDatasource("CCSSUITE_ODBCSOCKET_DSN", odbcSocketMetadata);
+        if(normalizedOdbcSocket.driver NEQ "ODBCSocket"
+                OR normalizedOdbcSocket.datasource NEQ "CCSSUITE_MSACCESS_DSN"
+                OR normalizedOdbcSocket.host NEQ "localhost"
+                OR normalizedOdbcSocket.port NEQ "20014"
+                OR normalizedOdbcSocket.UseTrustedConnection NEQ "false"
+                OR NOT reFindNoCase("^sha256:[a-f0-9]{64}$", normalizedOdbcSocket.password))
+                throw(message="ODBC Socket urlmap metadata normalization failed");
+        odbcSocketDirectMetadata = duplicate(odbcSocketMetadata);
+        odbcSocketDirectMetadata.datasource = odbcSocketMetadata.urlmap.datasource;
+        odbcSocketDirectMetadata.host = odbcSocketMetadata.urlmap.host;
+        odbcSocketDirectMetadata.port = odbcSocketMetadata.urlmap.port;
+        odbcSocketDirectMetadata.UseTrustedConnection = odbcSocketMetadata.urlmap.UseTrustedConnection;
+        if(NOT odbcSocketUtil.configsMatch("odbcSocketDsn",
+                serializeJSON([normalizedOdbcSocket]),
+                serializeJSON([odbcSocketUtil.normalizeDatasource("CCSSUITE_ODBCSOCKET_DSN", odbcSocketDirectMetadata)])))
+                throw(message="ODBC Socket direct and urlmap metadata differ");
+        odbcSocketTrustedRow = deserializeJSON(odbcSocketUtil.getTestState("odbcSocketTrustedConnection"));
+        odbcSocketTrustedAlias = duplicate(odbcSocketTrustedRow);
+        odbcSocketTrustedAlias[1].UseTrustedConnection = "yes";
+        if(NOT odbcSocketUtil.configsMatch("odbcSocketTrustedConnection", serializeJSON(odbcSocketTrustedRow),
+                serializeJSON(odbcSocketTrustedAlias)))
+                throw(message="ODBC Socket trusted-connection value normalization failed");
+        odbcSocketPasswordTarget = odbcSocketUtil.getTestState("odbcSocketPassword");
+        odbcSocketPasswordPreset = deserializeJSON(odbcSocketUtil.getSeedState("odbcSocketPassword"));
+        odbcSocketPasswordActual = deserializeJSON(odbcSocketPasswordTarget);
+        odbcSocketPasswordPreset[1].password = "sha256:" & repeatString("a", 64);
+        odbcSocketPasswordActual[1].password = "sha256:" & repeatString("b", 64);
+        if(NOT odbcSocketUtil.setMatches("odbcSocketPassword", serializeJSON(odbcSocketPasswordPreset),
+                serializeJSON(odbcSocketPasswordActual), odbcSocketPasswordTarget))
+                throw(message="Changed ODBC Socket password fingerprint was rejected");
+        odbcSocketPasswordActual[1].password = odbcSocketPasswordPreset[1].password;
+        if(odbcSocketUtil.setMatches("odbcSocketPassword", serializeJSON(odbcSocketPasswordPreset),
+                serializeJSON(odbcSocketPasswordActual), odbcSocketPasswordTarget)
+                OR odbcSocketUtil.setMatches("odbcSocketPassword", "[]",
+                        serializeJSON(odbcSocketPasswordActual), odbcSocketPasswordTarget))
+                throw(message="Unchanged or unseeded ODBC Socket password was accepted");
+        oracleUtil = new cfsuite.ccssuite.utils.oracleDatasourceConfigUtil().init();
+        for(oracleField in oracleUtil.getFields()){
+                oracleTarget = oracleUtil.getTestState(oracleField.name);
+                oracleSeed = oracleUtil.getSeedState(oracleField.name);
+                if(NOT oracleUtil.configsMatch(oracleField.name, oracleTarget, oracleTarget)
+                        OR oracleUtil.configsMatch(oracleField.name, oracleTarget, "[]")
+                        OR oracleUtil.configsMatch(oracleField.name, oracleSeed, oracleTarget))
+                        throw(message="Oracle field fixture comparison failed for " & oracleField.name);
+                for(oracleColumn in oracleUtil.getColumns()){
+                        changed = deserializeJSON(oracleTarget);
+                        changed[1][oracleColumn] = "ccssuite-invalid-field";
+                        if(oracleUtil.configsMatch(oracleField.name, oracleTarget, serializeJSON(changed)))
+                                throw(message="Oracle comparison ignored " & oracleColumn);
+                }
+                oracleRow = deserializeJSON(oracleTarget)[1];
+                expectedDisplay = oracleField.field EQ "password" ? "[redacted]" : oracleRow[oracleField.field];
+                if(compare(oracleUtil.formatDisplayValue(oracleField.name, oracleTarget), expectedDisplay) NEQ 0
+                        OR oracleUtil.formatDisplayValue(oracleField.name, "[]") NEQ "Not registered"
+                        OR oracleUtil.formatDisplayValue(oracleField.name, "") NEQ "(unavailable)")
+                        throw(message="Oracle selected-field display failed for " & oracleField.name);
+                invalidOracleRow = duplicate(oracleRow);
+                invalidOracleRow.sid = "CCSSUITE_INVALID_SID";
+                for(invalidOracleValue in ["", "{}", serializeJSON([invalidOracleRow]), serializeJSON([oracleRow, oracleRow])]){
+                        rejected = false;
+                        try {
+                                apiUtil.setSetting(oracleField.name, invalidOracleValue, "datasources", "DataServices");
+                        }
+                        catch(CCSTest.ConfigError expectedFailure){
+                                rejected = true;
+                        }
+                        if(NOT rejected)
+                                throw(message="Unsafe Oracle setter value was accepted");
+                }
+                if(NOT isJSON(oracleUtil.getSetting(oracleField.name)))
+                        throw(message="Oracle getter did not return JSON");
+        }
+        oracleMetadata = {
+                DRIVER="Oracle",
+                username="ccssuite_fixture_user",
+                password="fixture-password-original",
+                description="CCSSUITE reserved Oracle fixture",
+                urlmap={sid="CCSSUITE_FIXTURE_SID", servicename="", host="localhost", port=1521}
+        };
+        normalizedOracle = oracleUtil.normalizeDatasource("CCSSUITE_ORACLE_DSN", oracleMetadata);
+        if(normalizedOracle.sid NEQ "CCSSUITE_FIXTURE_SID" OR len(normalizedOracle.servicename)
+                OR normalizedOracle.host NEQ "localhost" OR normalizedOracle.port NEQ "1521"
+                OR NOT reFindNoCase("^sha256:[a-f0-9]{64}$", normalizedOracle.password))
+                throw(message="Oracle urlmap metadata normalization failed");
+        oracleDirectMetadata = duplicate(oracleMetadata);
+        oracleDirectMetadata.sid = oracleMetadata.urlmap.sid;
+        oracleDirectMetadata.servicename = oracleMetadata.urlmap.servicename;
+        oracleDirectMetadata.host = oracleMetadata.urlmap.host;
+        oracleDirectMetadata.port = oracleMetadata.urlmap.port;
+        if(NOT oracleUtil.configsMatch("oracleDsn", serializeJSON([normalizedOracle]),
+                serializeJSON([oracleUtil.normalizeDatasource("CCSSUITE_ORACLE_DSN", oracleDirectMetadata)])))
+                throw(message="Oracle direct and urlmap metadata differ");
+        oracleServiceMode = duplicate(oracleMetadata);
+        oracleServiceMode.urlmap.sid = "";
+        oracleServiceMode.urlmap.servicename = "CCSSUITE_FIXTURE_SERVICE";
+        normalizedOracleServiceMode = oracleUtil.normalizeDatasource("CCSSUITE_ORACLE_DSN", oracleServiceMode);
+        if(normalizedOracleServiceMode.sid NEQ "" OR normalizedOracleServiceMode.servicename NEQ "CCSSUITE_FIXTURE_SERVICE")
+                throw(message="Oracle Service Name mode normalization failed");
+        otherUtil = new cfsuite.ccssuite.utils.otherDatasourceConfigUtil().init();
+        for(otherField in otherUtil.getFields()){
+                otherTarget = otherUtil.getTestState(otherField.name);
+                otherSeed = otherUtil.getSeedState(otherField.name);
+                if(NOT otherUtil.configsMatch(otherField.name, otherTarget, otherTarget)
+                        OR otherUtil.configsMatch(otherField.name, otherTarget, "[]")
+                        OR otherUtil.configsMatch(otherField.name, otherSeed, otherTarget))
+                        throw(message="Other JDBC field fixture comparison failed for " & otherField.name);
+                for(otherColumn in otherUtil.getColumns()){
+                        changed = deserializeJSON(otherTarget);
+                        changed[1][otherColumn] = "ccssuite-invalid-field";
+                        if(otherUtil.configsMatch(otherField.name, otherTarget, serializeJSON(changed)))
+                                throw(message="Other JDBC comparison ignored " & otherColumn);
+                }
+                otherRow = deserializeJSON(otherTarget)[1];
+                expectedDisplay = otherField.field EQ "password" ? "[redacted]" : otherRow[otherField.field];
+                if(compare(otherUtil.formatDisplayValue(otherField.name, otherTarget), expectedDisplay) NEQ 0
+                        OR otherUtil.formatDisplayValue(otherField.name, "[]") NEQ "Not registered"
+                        OR otherUtil.formatDisplayValue(otherField.name, "") NEQ "(unavailable)")
+                        throw(message="Other JDBC selected-field display failed for " & otherField.name);
+                invalidOtherRow = duplicate(otherRow);
+                invalidOtherRow[otherField.field] = "unrelated-value";
+                for(invalidOtherValue in ["", "{}", serializeJSON([invalidOtherRow]), serializeJSON([otherRow, otherRow])]){
+                        rejected = false;
+                        try {
+                                apiUtil.setSetting(otherField.name, invalidOtherValue, "datasources", "DataServices");
+                        }
+                        catch(CCSTest.ConfigError expectedFailure){
+                                rejected = true;
+                        }
+                        if(NOT rejected)
+                                throw(message="Unsafe Other JDBC setter value was accepted");
+                }
+                if(NOT isJSON(otherUtil.getSetting(otherField.name)))
+                        throw(message="Other JDBC getter did not return JSON");
+        }
+        otherMetadata = {
+                DRIVER="CCSSUITE JDBC Fixture Driver",
+                CLASS="com.ccssuite.jdbc.FixtureDriver",
+                url="jdbc:ccssuite:fixture://127.0.0.1:1/ccssuite",
+                username="ccssuite_fixture_user",
+                password="fixture-password-original",
+                description="CCSSUITE reserved other JDBC fixture"
+        };
+        normalizedOther = otherUtil.normalizeDatasource("CCSSUITE_OTHER_DSN", otherMetadata);
+        if(normalizedOther.driver NEQ "CCSSUITE JDBC Fixture Driver"
+                OR normalizedOther.class NEQ "com.ccssuite.jdbc.FixtureDriver"
+                OR normalizedOther.url NEQ "jdbc:ccssuite:fixture://127.0.0.1:1/ccssuite"
+                OR NOT reFindNoCase("^sha256:[a-f0-9]{64}$", normalizedOther.password))
+                throw(message="Other JDBC metadata normalization failed");
+        otherPasswordTarget = otherUtil.getTestState("otherPassword");
+        otherPasswordPreset = deserializeJSON(otherUtil.getSeedState("otherPassword"));
+        otherPasswordActual = deserializeJSON(otherPasswordTarget);
+        otherPasswordPreset[1].password = "sha256:" & repeatString("a", 64);
+        otherPasswordActual[1].password = "sha256:" & repeatString("b", 64);
+        if(NOT otherUtil.setMatches("otherPassword", serializeJSON(otherPasswordPreset),
+                serializeJSON(otherPasswordActual), otherPasswordTarget))
+                throw(message="Changed Other JDBC password fingerprint was rejected");
+        otherPasswordActual[1].password = otherPasswordPreset[1].password;
+        if(otherUtil.setMatches("otherPassword", serializeJSON(otherPasswordPreset),
+                serializeJSON(otherPasswordActual), otherPasswordTarget)
+                OR otherUtil.setMatches("otherPassword", "[]", serializeJSON(otherPasswordActual), otherPasswordTarget))
+                throw(message="Unchanged or unseeded Other JDBC password was accepted");
+        oraclePasswordTarget = oracleUtil.getTestState("oraclePassword");
+        oraclePasswordPreset = deserializeJSON(oracleUtil.getSeedState("oraclePassword"));
+        oraclePasswordActual = deserializeJSON(oraclePasswordTarget);
+        oraclePasswordPreset[1].password = "sha256:" & repeatString("a", 64);
+        oraclePasswordActual[1].password = "sha256:" & repeatString("b", 64);
+        if(NOT oracleUtil.setMatches("oraclePassword", serializeJSON(oraclePasswordPreset),
+                serializeJSON(oraclePasswordActual), oraclePasswordTarget))
+                throw(message="Changed Oracle password fingerprint was rejected");
+        oraclePasswordActual[1].password = oraclePasswordPreset[1].password;
+        if(oracleUtil.setMatches("oraclePassword", serializeJSON(oraclePasswordPreset),
+                serializeJSON(oraclePasswordActual), oraclePasswordTarget)
+                OR oracleUtil.setMatches("oraclePassword", "[]", serializeJSON(oraclePasswordActual), oraclePasswordTarget))
+                throw(message="Unchanged or unseeded Oracle password was accepted");
+        postgresqlUtil = new cfsuite.ccssuite.utils.postgresqlDatasourceConfigUtil().init();
+        for(postgresqlField in postgresqlUtil.getFields()){
+                postgresqlTarget = postgresqlUtil.getTestState(postgresqlField.name);
+                postgresqlSeed = postgresqlUtil.getSeedState(postgresqlField.name);
+                if(NOT postgresqlUtil.configsMatch(postgresqlField.name, postgresqlTarget, postgresqlTarget)
+                        OR postgresqlUtil.configsMatch(postgresqlField.name, postgresqlTarget, "[]")
+                        OR postgresqlUtil.configsMatch(postgresqlField.name, postgresqlSeed, postgresqlTarget))
+                        throw(message="PostgreSQL field fixture comparison failed for " & postgresqlField.name);
+                for(postgresqlColumn in postgresqlUtil.getColumns()){
+                        changed = deserializeJSON(postgresqlTarget);
+                        changed[1][postgresqlColumn] = "ccssuite-invalid-field";
+                        if(postgresqlUtil.configsMatch(postgresqlField.name, postgresqlTarget, serializeJSON(changed)))
+                                throw(message="PostgreSQL comparison ignored " & postgresqlColumn);
+                }
+                postgresqlRow = deserializeJSON(postgresqlTarget)[1];
+                expectedDisplay = postgresqlField.field EQ "password" ? "[redacted]" : postgresqlRow[postgresqlField.field];
+                if(compare(postgresqlUtil.formatDisplayValue(postgresqlField.name, postgresqlTarget), expectedDisplay) NEQ 0
+                        OR postgresqlUtil.formatDisplayValue(postgresqlField.name, "[]") NEQ "Not registered"
+                        OR postgresqlUtil.formatDisplayValue(postgresqlField.name, "") NEQ "(unavailable)")
+                        throw(message="PostgreSQL selected-field display failed for " & postgresqlField.name);
+                invalidPostgresqlRow = duplicate(postgresqlRow);
+                invalidPostgresqlRow.host = "ccssuite-invalid-host";
+                for(invalidPostgresqlValue in ["", "{}", serializeJSON([invalidPostgresqlRow]), serializeJSON([postgresqlRow, postgresqlRow])]){
+                        rejected = false;
+                        try {
+                                apiUtil.setSetting(postgresqlField.name, invalidPostgresqlValue, "datasources", "DataServices");
+                        }
+                        catch(CCSTest.ConfigError expectedFailure){
+                                rejected = true;
+                        }
+                        if(NOT rejected)
+                                throw(message="Unsafe PostgreSQL setter value was accepted");
+                }
+                if(NOT isJSON(postgresqlUtil.getSetting(postgresqlField.name)))
+                        throw(message="PostgreSQL getter did not return JSON");
+        }
+        postgresqlPasswordTarget = postgresqlUtil.getTestState("postgresqlPassword");
+        postgresqlPasswordPreset = deserializeJSON(postgresqlUtil.getSeedState("postgresqlPassword"));
+        postgresqlPasswordActual = deserializeJSON(postgresqlPasswordTarget);
+        postgresqlPasswordPreset[1].password = "sha256:" & repeatString("a", 64);
+        postgresqlPasswordActual[1].password = "sha256:" & repeatString("b", 64);
+        if(NOT postgresqlUtil.setMatches("postgresqlPassword", serializeJSON(postgresqlPasswordPreset),
+                serializeJSON(postgresqlPasswordActual), postgresqlPasswordTarget))
+                throw(message="Changed PostgreSQL password fingerprint was rejected");
+        postgresqlPasswordActual[1].password = postgresqlPasswordPreset[1].password;
+        if(postgresqlUtil.setMatches("postgresqlPassword", serializeJSON(postgresqlPasswordPreset),
+                serializeJSON(postgresqlPasswordActual), postgresqlPasswordTarget)
+                OR postgresqlUtil.setMatches("postgresqlPassword", "[]",
+                        serializeJSON(postgresqlPasswordActual), postgresqlPasswordTarget))
+                throw(message="Unchanged or unseeded PostgreSQL password was accepted");
         embeddedUtil = new cfsuite.ccssuite.utils.derbyEmbeddedDatasourceConfigUtil().init();
         for(embeddedField in embeddedUtil.getFields()){
                 embeddedTarget = embeddedUtil.getTestState(embeddedField.name);
@@ -319,6 +738,20 @@ try {
                 arrayAppend(result.cases, field.name);
         for(field in db2Util.getFields())
                 arrayAppend(result.cases, field.name);
+        for(field in mssqlUtil.getFields())
+                arrayAppend(result.cases, field.name);
+        for(field in mysqlUtil.getFields())
+                arrayAppend(result.cases, field.name);
+        for(field in mysqlDataDirectUtil.getFields())
+                arrayAppend(result.cases, field.name);
+        for(field in odbcSocketUtil.getFields())
+                arrayAppend(result.cases, field.name);
+        for(field in oracleUtil.getFields())
+                arrayAppend(result.cases, field.name);
+        for(field in otherUtil.getFields())
+                arrayAppend(result.cases, field.name);
+        for(field in postgresqlUtil.getFields())
+                arrayAppend(result.cases, field.name);
         for(field in jndiUtil.getFields())
                 arrayAppend(result.cases, field.name);
         for(field in accessUtil.getFields())
@@ -326,17 +759,40 @@ try {
         for(settingName in result.cases){
                 target = configUtil.getTestState(settingName);
                 if(configUtil.isPreparedDatasourceSetting(settingName)){
-                        fieldName = configUtil.isMsAccessSetting(settingName) ? accessUtil.getField(settingName).field
-                                : (configUtil.isJndiSetting(settingName) ? jndiUtil.getField(settingName).field
-                                : (configUtil.isDb2Setting(settingName) ? db2Util.getField(settingName).field
-                                : (configUtil.isDerbyEmbeddedSetting(settingName) ? embeddedUtil.getField(settingName).field : derbyUtil.getField(settingName).field)));
+                        if(configUtil.isOtherSetting(settingName))
+                                fieldName = otherUtil.getField(settingName).field;
+                        else if(configUtil.isPostgresqlSetting(settingName))
+                                fieldName = postgresqlUtil.getField(settingName).field;
+                        else if(configUtil.isOracleSetting(settingName))
+                                fieldName = oracleUtil.getField(settingName).field;
+                        else if(configUtil.isMsAccessSetting(settingName))
+                                fieldName = accessUtil.getField(settingName).field;
+                        else if(configUtil.isJndiSetting(settingName))
+                                fieldName = jndiUtil.getField(settingName).field;
+                        else if(configUtil.isMysqlSetting(settingName))
+                                fieldName = mysqlUtil.getField(settingName).field;
+                        else if(configUtil.isOdbcSocketSetting(settingName))
+                                fieldName = odbcSocketUtil.getField(settingName).field;
+                        else if(configUtil.isMysqlDataDirectSetting(settingName))
+                                fieldName = mysqlDataDirectUtil.getField(settingName).field;
+                        else if(configUtil.isMssqlSetting(settingName))
+                                fieldName = mssqlUtil.getField(settingName).field;
+                        else if(configUtil.isDb2Setting(settingName))
+                                fieldName = db2Util.getField(settingName).field;
+                        else if(configUtil.isDerbyEmbeddedSetting(settingName))
+                                fieldName = embeddedUtil.getField(settingName).field;
+                        else
+                                fieldName = derbyUtil.getField(settingName).field;
                         targetRow = deserializeJSON(target)[1];
                         expectedDisplay = fieldName EQ "password" ? "[redacted]" : (fieldName EQ "isnewdb" ? "Enabled"
-                                : (fieldName EQ "UseTrustedConnection" ? "Disabled" : targetRow[fieldName]));
+                                : (fieldName EQ "UseTrustedConnection"
+                                        ? (listFindNoCase("true,yes,1", "" & targetRow[fieldName]) ? "Enabled" : "Disabled")
+                                        : targetRow[fieldName]));
                         if(compare(displayUtil.formatDisplayValue(settingName, target), expectedDisplay) NEQ 0
                                 OR displayUtil.formatDisplayValue(settingName, "[]") NEQ "Not registered"
                                 OR displayUtil.formatDisplayValue(settingName, "") NEQ "(unavailable)")
-                                throw(message="Selected Derby field or absent-node display is incorrect");
+                                throw(message="Selected field display is incorrect for " & settingName & ": expected "
+                                        & expectedDisplay & ", got " & displayUtil.formatDisplayValue(settingName, target));
                         malformedRow = duplicate(targetRow);
                         structDelete(malformedRow, fieldName);
                         if(displayUtil.formatDisplayValue(settingName, serializeJSON([malformedRow])) NEQ "(unavailable)")
@@ -367,7 +823,7 @@ try {
                         throw(message="Datasource getter did not return JSON");
                 if(NOT isJSON(apiUtil.getSetting(settingName, "datasources", "DataServices")))
                         throw(message="Datasource shared getter routing failed");
-                if(NOT listFindNoCase("derbyClientPassword,db2Password,jndiPassword,msAccessPassword", settingName) AND NOT comparisonUtil.setMatches(settingName, "[]", target, target, "datasources"))
+                if(NOT listFindNoCase("derbyClientPassword,db2Password,mssqlPassword,mysqlPassword,mysqlDataDirectPassword,odbcSocketPassword,oraclePassword,otherPassword,postgresqlPassword,jndiPassword,msAccessPassword", settingName) AND NOT comparisonUtil.setMatches(settingName, "[]", target, target, "datasources"))
                         throw(message="Datasource shared comparison routing failed");
         }
         jndiPasswordTarget = jndiUtil.getTestState("jndiPassword");
@@ -387,6 +843,58 @@ try {
         db2PasswordActual[1].password = db2PasswordPreset[1].password;
         if(comparisonUtil.setMatches("db2Password", serializeJSON(db2PasswordPreset), serializeJSON(db2PasswordActual), db2PasswordTarget, "datasources"))
                 throw(message="DB2 shared comparison accepted an unchanged password");
+        mssqlPasswordActual[1].password = "sha256:" & repeatString("b", 64);
+        if(NOT comparisonUtil.setMatches("mssqlPassword", serializeJSON(mssqlPasswordPreset), serializeJSON(mssqlPasswordActual), mssqlPasswordTarget, "datasources"))
+                throw(message="SQL Server shared password-change comparison routing failed");
+        mssqlPasswordActual[1].password = mssqlPasswordPreset[1].password;
+        if(comparisonUtil.setMatches("mssqlPassword", serializeJSON(mssqlPasswordPreset), serializeJSON(mssqlPasswordActual), mssqlPasswordTarget, "datasources"))
+                throw(message="SQL Server shared comparison accepted an unchanged password");
+        mysqlPasswordActual[1].password = "sha256:" & repeatString("b", 64);
+        if(NOT comparisonUtil.setMatches("mysqlPassword", serializeJSON(mysqlPasswordPreset), serializeJSON(mysqlPasswordActual), mysqlPasswordTarget, "datasources"))
+                throw(message="MySQL shared password-change comparison routing failed");
+        mysqlPasswordActual[1].password = mysqlPasswordPreset[1].password;
+        if(comparisonUtil.setMatches("mysqlPassword", serializeJSON(mysqlPasswordPreset), serializeJSON(mysqlPasswordActual), mysqlPasswordTarget, "datasources"))
+                throw(message="MySQL shared comparison accepted an unchanged password");
+        mysqlDataDirectPasswordActual[1].password = "sha256:" & repeatString("b", 64);
+        if(NOT comparisonUtil.setMatches("mysqlDataDirectPassword", serializeJSON(mysqlDataDirectPasswordPreset),
+                serializeJSON(mysqlDataDirectPasswordActual), mysqlDataDirectPasswordTarget, "datasources"))
+                throw(message="MySQL DataDirect shared password-change comparison routing failed");
+        mysqlDataDirectPasswordActual[1].password = mysqlDataDirectPasswordPreset[1].password;
+        if(comparisonUtil.setMatches("mysqlDataDirectPassword", serializeJSON(mysqlDataDirectPasswordPreset),
+                serializeJSON(mysqlDataDirectPasswordActual), mysqlDataDirectPasswordTarget, "datasources"))
+                throw(message="MySQL DataDirect shared comparison accepted an unchanged password");
+        odbcSocketPasswordActual[1].password = "sha256:" & repeatString("b", 64);
+        if(NOT comparisonUtil.setMatches("odbcSocketPassword", serializeJSON(odbcSocketPasswordPreset),
+                serializeJSON(odbcSocketPasswordActual), odbcSocketPasswordTarget, "datasources"))
+                throw(message="ODBC Socket shared password-change comparison routing failed");
+        odbcSocketPasswordActual[1].password = odbcSocketPasswordPreset[1].password;
+        if(comparisonUtil.setMatches("odbcSocketPassword", serializeJSON(odbcSocketPasswordPreset),
+                serializeJSON(odbcSocketPasswordActual), odbcSocketPasswordTarget, "datasources"))
+                throw(message="ODBC Socket shared comparison accepted an unchanged password");
+        oraclePasswordActual[1].password = "sha256:" & repeatString("c", 64);
+        if(NOT comparisonUtil.setMatches("oraclePassword", serializeJSON(oraclePasswordPreset),
+                serializeJSON(oraclePasswordActual), oraclePasswordTarget, "datasources"))
+                throw(message="Oracle shared password-change comparison routing failed");
+        oraclePasswordActual[1].password = oraclePasswordPreset[1].password;
+        if(comparisonUtil.setMatches("oraclePassword", serializeJSON(oraclePasswordPreset),
+                serializeJSON(oraclePasswordActual), oraclePasswordTarget, "datasources"))
+                throw(message="Oracle shared comparison accepted an unchanged password");
+        otherPasswordActual[1].password = "sha256:" & repeatString("c", 64);
+        if(NOT comparisonUtil.setMatches("otherPassword", serializeJSON(otherPasswordPreset),
+                serializeJSON(otherPasswordActual), otherPasswordTarget, "datasources"))
+                throw(message="Other JDBC shared password-change comparison routing failed");
+        otherPasswordActual[1].password = otherPasswordPreset[1].password;
+        if(comparisonUtil.setMatches("otherPassword", serializeJSON(otherPasswordPreset),
+                serializeJSON(otherPasswordActual), otherPasswordTarget, "datasources"))
+                throw(message="Other JDBC shared comparison accepted an unchanged password");
+        postgresqlPasswordActual[1].password = "sha256:" & repeatString("c", 64);
+        if(NOT comparisonUtil.setMatches("postgresqlPassword", serializeJSON(postgresqlPasswordPreset),
+                serializeJSON(postgresqlPasswordActual), postgresqlPasswordTarget, "datasources"))
+                throw(message="PostgreSQL shared password-change comparison routing failed");
+        postgresqlPasswordActual[1].password = postgresqlPasswordPreset[1].password;
+        if(comparisonUtil.setMatches("postgresqlPassword", serializeJSON(postgresqlPasswordPreset),
+                serializeJSON(postgresqlPasswordActual), postgresqlPasswordTarget, "datasources"))
+                throw(message="PostgreSQL shared comparison accepted an unchanged password");
         passwordTarget = configUtil.getTestState("derbyClientPassword");
         passwordPreset = deserializeJSON(configUtil.getSeedState("derbyClientPassword"));
         passwordActual = deserializeJSON(passwordTarget);
