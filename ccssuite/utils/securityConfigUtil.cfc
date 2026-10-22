@@ -282,6 +282,14 @@ component output="false" {
 		return admin;
 	}
 
+	public any function loginAdminPublic(){
+		return loginAdmin();
+	}
+
+	public void function logoutAdminPublic(required any admin){
+		logoutAdmin(arguments.admin);
+	}
+
 	public string function getActualServerSeed(){
 		if(structKeyExists(application, "ccsTestSeed") AND len(trim(application.ccsTestSeed)))
 			return trim(application.ccsTestSeed);
