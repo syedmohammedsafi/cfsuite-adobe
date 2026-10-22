@@ -94,13 +94,14 @@ component output="true" displayname=""  {
 		if(isSecurityMenuUrl(setURLSuffix) AND listFindNoCase("SandboxPath,SandboxPathCopyFrom", cfSettingKey)){
 			setOk = applySecuritySettingOnAllPrimeNodesVerified(postSetTestFrame, toSetValue, cfSettingKey, apiArea);
 		}
+		else if(isLocalNodePort(firstNodeKey)){
+			setOk = setPropertyLocal(cfSettingKey, toSetValue, apiArea, menuName);
+		}
 		else if(isSecurityMenuUrl(setURLSuffix)){
 			setOk = setAndVerifySettingViaHttp(firstNodeKey, setURLSuffix, getURLSuffix, cfSettingKey, toSetValue, apiArea);
 		}
 		else {
-			setOk = (isLocalNodePort(firstNodeKey) AND NOT isSecurityMenuUrl(setURLSuffix))
-				? setPropertyLocal(cfSettingKey, toSetValue, apiArea, menuName)
-				: makeSetHTTPCall(_url);
+			setOk = makeSetHTTPCall(_url);
 		}
 		presetValue = primePrePostPairMap[application.testConstants.TEST_FRAME.PRESET_VALUE]
 		if(NOT setOk){
@@ -126,14 +127,18 @@ component output="true" displayname=""  {
 					OR lCase(getMenuNameFromUrl(setURLSuffix)) EQ "aiservices"
 					OR lCase(getMenuNameFromUrl(setURLSuffix)) EQ "extensions"
 					OR lCase(getMenuNameFromUrl(setURLSuffix)) EQ "eventgateways"
-					OR lCase(getMenuNameFromUrl(setURLSuffix)) EQ "security"){
-				if(NOT listFindNoCase("SandboxPath,SandboxPathCopyFrom", cfSettingKey))
+					OR (isSecurityMenuUrl(setURLSuffix) AND listFindNoCase("idpconfiguration,spconfiguration", apiArea))){
+				if(NOT listFindNoCase("SandboxPath,SandboxPathCopyFrom", cfSettingKey) AND NOT isInstanceLocalSetting(apiArea, cfSettingKey))
 					propagateDocumentSettingToPrimePeers(postSetTestFrame, toSetValue, cfSettingKey, apiArea);
 			}
 
 			// Cluster document sync can briefly revert neo-saml on the origin node after peer propagation.
-			if(isSecurityMenuUrl(setURLSuffix) AND NOT listFindNoCase("SandboxPath,SandboxPathCopyFrom", cfSettingKey) AND isLocalNodePort(firstNodeKey)){
-				setAndVerifySettingViaHttp(firstNodeKey, setURLSuffix, getURLSuffix, cfSettingKey, toSetValue, apiArea);
+			if(isSecurityMenuUrl(setURLSuffix) AND listFindNoCase("idpconfiguration,spconfiguration", apiArea) AND NOT listFindNoCase("SandboxPath,SandboxPathCopyFrom", cfSettingKey) AND NOT isInstanceLocalSetting(apiArea, cfSettingKey)){
+				if(isLocalNodePort(firstNodeKey)){
+					setPropertyLocal(cfSettingKey, toSetValue, apiArea, menuName);
+				} else {
+					setAndVerifySettingViaHttp(firstNodeKey, setURLSuffix, getURLSuffix, cfSettingKey, toSetValue, apiArea);
+				}
 			}
 	
 			for(primeKey in listToArray(primKeyList)){
@@ -189,7 +194,7 @@ component output="true" displayname=""  {
 		primKeyList = filterNodeKeysForTestScope(expTestFrame[application.testConstants.TEST_FRAME.PRIME_SET].keyList())
 		for(primeKey in primKeyList){
 			prePostPairMap = expTestFrame[#application.testConstants.TEST_FRAME.PRIME_SET#].find(primeKey)
-			if(isInstanceLocalApiArea(apiArea, settingName) AND NOT isLocalNodePort(primeKey))
+			if((isInstanceLocalSetting(apiArea, settingName) AND NOT isLocalNodePort(primeKey)) OR NOT isSameClusterEnvironmentNode(primeKey))
 				prePostPairMap[application.testConstants.TEST_FRAME.POSTSET_VALUE] = prePostPairMap[application.testConstants.TEST_FRAME.PRESET_VALUE]
 			else
 				prePostPairMap[application.testConstants.TEST_FRAME.POSTSET_VALUE] = expectedValue
@@ -209,9 +214,25 @@ component output="true" displayname=""  {
 	private boolean function shouldExpectClusterSecuritySync(required string settingName, required string apiArea, required string nodeKey){
 		if(NOT isSameClusterEnvironmentNode(arguments.nodeKey))
 			return false;
+		if(isInstanceLocalSetting(arguments.apiArea, arguments.settingName))
+			return false;
 		if(arguments.settingName EQ "SandboxPath")
 			return true;
 		return listFindNoCase("administrator,rds,sandboxsecurity,settings", lCase(trim(arguments.apiArea))) GT 0;
+	}
+
+	private string function getCurrentNodeKey(){
+		var currentPort = trim("" & CGI.SERVER_PORT);
+		if(structKeyExists(application, "ccsConfigMap")){
+			for(var k in application.ccsConfigMap){
+				var parts = listToArray(k, "::", false, true);
+				if(arrayLen(parts) LT 2)
+					parts = listToArray(k, ":", false, true);
+				if(arrayLen(parts) GTE 2 AND val(parts[2]) EQ val(currentPort))
+					return k;
+			}
+		}
+		return CGI.SERVER_NAME & "::" & CGI.SERVER_PORT;
 	}
 
 	private boolean function isSameClusterEnvironmentNode(required string nodeKey){
@@ -219,7 +240,7 @@ component output="true" displayname=""  {
 			application.constants = new cfsuite.ccssuite.constants().init();
 		if(NOT structKeyExists(application, "ccsConfigMap"))
 			return true;
-		var currentKey = CGI.SERVER_NAME & "::" & CGI.SERVER_PORT;
+		var currentKey = getCurrentNodeKey();
 		if(NOT application.ccsConfigMap.keyExists(currentKey) OR NOT application.ccsConfigMap.keyExists(arguments.nodeKey))
 			return true;
 		var currentCluster = application.ccsConfigMap[currentKey][application.constants.CCS_CONFIG.CLUSTER];
@@ -729,7 +750,11 @@ component output="true" displayname=""  {
 						success = false
 				}
 				else {
+					if(NOT isSameClusterEnvironmentNode(nodeKey))
+						continue;
 					if(isSecurityMenuUrl(setURLSuffix)){
+						if(NOT listFindNoCase("idpconfiguration,spconfiguration", realApiArea))
+							continue;
 						if(NOT setAndVerifySettingViaHttp(
 							nodeKey,
 							setURLSuffix,
@@ -884,6 +909,8 @@ component output="true" displayname=""  {
 	private void function applyPropertyLocal(required string cfSetting, required any settingValue, required string apiArea, required string menuName){
 		if(usesServerSettingsApiUtil(arguments.menuName))
 			new cfsuite.ccssuite.utils.serverSettingsApiUtil().init().setSetting(arguments.cfSetting, arguments.settingValue, arguments.apiArea);
+		else if(isSecurityMenuName(arguments.menuName))
+			new cfsuite.ccssuite.utils.securityConfigUtil().init().setSecuritySetting(arguments.cfSetting, arguments.settingValue, arguments.apiArea);
 		else
 			new cfsuite.ccssuite.utils.ccsApiUtil().init().setSetting(arguments.cfSetting, arguments.settingValue, arguments.apiArea, arguments.menuName);
 	}
@@ -964,10 +991,9 @@ component output="true" displayname=""  {
 
 	private string function getCurrentSettingValue(required string nodeKey, required string urlSuffix, required string cfSetting, required string apiArea){
 		
-		// Security settings use neo-security.xml directly; HTTP loopback gives reliable read-back in the same request.
-		if(isLocalNodePort(nodeKey) AND NOT isSecurityMenuUrl(urlSuffix)){
+		if(isLocalNodePort(nodeKey)){
 			var menuName = getMenuNameFromUrl(urlSuffix);
-			return getPropertyLocal(cfSetting, apiArea, menuName)
+			return getPropertyLocal(cfSetting, apiArea, menuName);
 		}
 
 		var _url = getURL(nodeKey, urlSuffix, buildSettingQueryParams(cfSetting, "", apiArea, false));
@@ -1011,6 +1037,8 @@ component output="true" displayname=""  {
 
 	private string function getApiArea(required string scriptPath){
 		var path = replace(arguments.scriptPath, "\", "/", "all");
+		if(findNoCase("systemprobes", path))
+			return "systemprobes";
 		var marker = "/testsuite/";
 		var pos = findNoCase(marker, path);
 		if(NOT pos)
@@ -1125,6 +1153,8 @@ component output="true" displayname=""  {
 		try {
 			if(usesServerSettingsApiUtil(arguments.menuName))
 				return trim("" & new cfsuite.ccssuite.utils.serverSettingsApiUtil().init().getSetting(arguments.cfSetting, arguments.apiArea));
+			if(isSecurityMenuName(arguments.menuName))
+				return trim("" & new cfsuite.ccssuite.utils.securityConfigUtil().init().getSecuritySetting(arguments.cfSetting, arguments.apiArea));
 			return trim("" & new cfsuite.ccssuite.utils.ccsApiUtil().init().getSetting(arguments.cfSetting, arguments.apiArea, arguments.menuName));
 		}
 		catch(any e){
@@ -1286,6 +1316,15 @@ component output="true" displayname=""  {
 	private boolean function isTestScopeCurrentPortOnly(){
 		// Default: only this server port. Set application.ccsTestNodesScope = "all" for every CCS node.
 		return NOT (structKeyExists(application, "ccsTestNodesScope") AND application.ccsTestNodesScope EQ "all")
+	}
+
+
+	private boolean function isInstanceLocalSetting(required string apiArea, required string settingName){
+		if(isInstanceLocalApiArea(arguments.apiArea, arguments.settingName))
+			return true;
+		if(new cfsuite.ccssuite.utils.securityConfigUtil().init().isInstanceLocalSecuritySetting(arguments.settingName))
+			return true;
+		return false;
 	}
 
 

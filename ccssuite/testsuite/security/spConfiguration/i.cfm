@@ -5,7 +5,7 @@
 <h3>Add / generate sync tests</h3>
 <ul>
 	<li><a href="addSp.cfm">Add SP</a> — alias <code>ccsTestSpAdd</code></li>
-	<!--- <li><a href="generateSp.cfm">Generate SP</a> — alias <code>ccsTestSpGen</code></li> --->
+	<li><a href="generateSp.cfm">Generate SP</a> — alias <code>ccsTestSpGen</code></li>
 </ul>
 
 <h3>Form field sync tests</h3>

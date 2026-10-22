@@ -60,6 +60,35 @@ component output="true" {
 		) GT 0;
 	}
 
+	public string function getCurrentNodeKey(){
+		var currentPort = trim("" & CGI.SERVER_PORT);
+		if(structKeyExists(application, "ccsConfigMap")){
+			for(var k in application.ccsConfigMap){
+				var parts = listToArray(k, "::", false, true);
+				if(arrayLen(parts) LT 2)
+					parts = listToArray(k, ":", false, true);
+				if(arrayLen(parts) GTE 2 AND val(parts[2]) EQ val(currentPort))
+					return k;
+			}
+		}
+		return CGI.SERVER_NAME & "::" & CGI.SERVER_PORT;
+	}
+
+	public boolean function isSameClusterNode(required string nodeKey){
+		if(NOT structKeyExists(application, "constants"))
+			application.constants = new cfsuite.ccssuite.constants().init();
+		if(NOT structKeyExists(application, "ccsConfigMap"))
+			return true;
+		var currentKey = getCurrentNodeKey();
+		if(NOT application.ccsConfigMap.keyExists(currentKey) OR NOT application.ccsConfigMap.keyExists(arguments.nodeKey))
+			return true;
+		var currentCluster = application.ccsConfigMap[currentKey][application.constants.CCS_CONFIG.CLUSTER];
+		var currentEnv = application.ccsConfigMap[currentKey][application.constants.CCS_CONFIG.ENVIRONMENT];
+		var nodeCluster = application.ccsConfigMap[arguments.nodeKey][application.constants.CCS_CONFIG.CLUSTER];
+		var nodeEnv = application.ccsConfigMap[arguments.nodeKey][application.constants.CCS_CONFIG.ENVIRONMENT];
+		return currentCluster EQ nodeCluster AND currentEnv EQ nodeEnv;
+	}
+
 	private boolean function isCurrentServerNodeKey(required string nodeKey){
 		var parts = listToArray(arguments.nodeKey, getNodeKeySeparator(), false, true);
 		if(arrayLen(parts) LT 2)
@@ -354,6 +383,11 @@ component output="true" {
 			return "Empty string (read from node)";
 		if(listFindNoCase("redisCacheStoragePassword,sessionStoragePassword", arguments.settingName))
 			return len(text) ? "[redacted]" : "(empty)";
+		if(listFindNoCase("CCSTestProbePasswordField,CCSTestSystemProbePasswordField,CCSTestProbePassword,CCSTestSystemProbePassword,probe_password,password", arguments.settingName)){
+			if(NOT len(text) OR text EQ "password")
+				return "(empty)";
+			return text;
+		}
 		if(findNoCase("set FAILED", text))
 			return text;
 		if(compareNoCase(arguments.settingName, "AppCFCLookupOrder") EQ 0)
@@ -778,6 +812,8 @@ component output="true" {
 
 	private string function getApiAreaFromScriptPath(required string scriptPath){
 		var path = replace(arguments.scriptPath, "\", "/", "all");
+		if(findNoCase("systemprobes", path))
+			return "systemprobes";
 		var marker = "/testsuite/";
 		var pos = findNoCase(marker, path);
 		if(NOT pos)
@@ -935,7 +971,7 @@ component output="true" {
 			// System Probes - Probe Definition & Properties (Task alias: CCSTestProbe / CCSTestSystemProbe)
 			case "CCSTestProbeTaskName":
 			case "CCSTestSystemProbeTaskName":
-				return (trim(value) EQ "CCSTestProbe" OR trim(value) EQ "CCSTestSystemProbe") ? "" : "CCSTestProbe";
+				return (trim(value) EQ "CCSTestProbe" OR trim(value) EQ "CCSTestSystemProbe") ? "CCSTestProbeAlt" : "CCSTestProbe";
 			case "CCSTestProbeIntervalHour":
 			case "CCSTestSystemProbeIntervalHour":
 				return (trim(value) EQ "2") ? "1" : "2";
@@ -1889,7 +1925,7 @@ component output="true" {
 					? actual[application.testConstants.TEST_FRAME.PRESET_VALUE] : "";
 				var postVal = structKeyExists(actual, application.testConstants.TEST_FRAME.POSTSET_VALUE)
 					? actual[application.testConstants.TEST_FRAME.POSTSET_VALUE] : "";
-				if(NOT arguments.showEmptyNodes AND NOT len(trim("" & preVal)) AND NOT len(trim("" & postVal)))
+				if(NOT arguments.showEmptyNodes AND lCase(arguments.apiArea) NEQ "systemprobes" AND NOT len(trim("" & preVal)) AND NOT len(trim("" & postVal)))
 					continue;
 
 				var isCurrentNode = isCurrentServerNodeKey(nodeKey);
@@ -1901,13 +1937,19 @@ component output="true" {
 				if(isCurrentNode){
 					passed = actuallySynced;
 				}
+				else if(NOT isSameClusterNode(nodeKey)) {
+					crossCluster = true;
+					passed = unchangedFromPreset;
+				}
+				else if(requireCacheSync){
+					// Dynamically applied for all cluster-synced services (systemprobes, mappings, scheduledtasks, datasources, etc.)
+					passed = actuallySynced;
+				}
 				else if(instanceLocalArea){
 					passed = unchangedFromPreset;
 				}
 				else {
-					// A peer node that legitimately stayed unchanged (e.g. a currentPort-scoped test)
-					// is not a failure; only flag it if it changed to something unexpected.
-					passed = requireCacheSync ? actuallySynced : (actuallySynced OR unchangedFromPreset);
+					passed = actuallySynced OR unchangedFromPreset;
 				}
 
 				var cluster = "N/A";
@@ -1917,14 +1959,9 @@ component output="true" {
 					env = application.ccsConfigMap[nodeKey][application.constants.CCS_CONFIG.ENVIRONMENT];
 				}
 
-				var currentKey = CGI.SERVER_NAME & "::" & CGI.SERVER_PORT;
-				if(structKeyExists(application, "ccsConfigMap") AND application.ccsConfigMap.keyExists(currentKey)) {
-					var currentCluster = application.ccsConfigMap[currentKey][application.constants.CCS_CONFIG.CLUSTER];
-					var currentEnv = application.ccsConfigMap[currentKey][application.constants.CCS_CONFIG.ENVIRONMENT];
-					if (currentCluster NEQ cluster OR currentEnv NEQ env) {
-						crossCluster = true;
-						passed = unchangedFromPreset;
-					}
+				if(NOT isSameClusterNode(nodeKey)) {
+					crossCluster = true;
+					passed = unchangedFromPreset;
 				}
 
 				// Sync State is a plain-language read of what actually happened on this node,
@@ -1946,11 +1983,7 @@ component output="true" {
 					syncState = "Synced";
 				}
 				else if(unchangedFromPreset){
-					syncState = requireCacheSync AND (left(lCase(settingName), 5) EQ "redis" OR left(lCase(settingName), 3) EQ "jcs"
-						OR listFindNoCase("enableInternalQueryCache,maxcachecount", settingName)
-							OR listFindNoCase("mappings,scheduledtasks,fontmanagement,datasources,systemprobes", arguments.apiArea)
-						OR new cfsuite.ccssuite.utils.memoryVariablesConfigUtil().init().isStorageSetting(settingName))
-						? "Not synced with CCS" : "Pending sync";
+					syncState = requireCacheSync ? "Not synced with CCS" : "Pending sync";
 				}
 				else {
 					syncState = "Unexpected value";
@@ -2020,14 +2053,37 @@ component output="true" {
 			// at all — that's not a skipped/unreachable node, it's out of scope by design, so an
 			// empty existing value here is expected and should not read as a failure.
 			var outOfScope = application.ccsTestNodesScope EQ "currentPort";
+			var isCrossCluster = !isSameClusterNode(nodeKey);
+			var requireSync = (lCase(arguments.apiArea) EQ "caching"
+				OR listFindNoCase("mappings,scheduledtasks,fontmanagement,datasources,systemprobes,restservices", arguments.apiArea)
+				OR (lCase(arguments.apiArea) EQ "memoryvariables" AND new cfsuite.ccssuite.utils.memoryVariablesConfigUtil().init().isStorageSetting(arguments.afterFrame[application.testConstants.TEST_FRAME.CFSETTING])))
+				AND (NOT structKeyExists(application, "ccsTestNodesScope") OR application.ccsTestNodesScope EQ "all");
+			var nodePassed = false;
+			var nodeSyncState = "";
+			if(isCrossCluster){
+				nodePassed = true;
+				nodeSyncState = "Different cluster/env";
+			}
+			else if(outOfScope){
+				nodePassed = true;
+				nodeSyncState = "Out of scope (single-node test)";
+			}
+			else if(requireSync){
+				nodePassed = false;
+				nodeSyncState = "Not synced with CCS";
+			}
+			else {
+				nodePassed = hasCapturedValue;
+				nodeSyncState = hasCapturedValue ? "Not re-checked (skipped/unreachable)" : "Unavailable";
+			}
 			arrayAppend(rows, {
 				nodeKey = nodeKey,
 				nodeLabel = getURLFragFromNodeKey(nodeKey),
 				existingValue = displayExisting,
 				updatedValue = displayExisting,
-				verificationStatus = (hasCapturedValue OR outOfScope) ? "Passed" : "Failed",
-				passed = (hasCapturedValue OR outOfScope),
-				syncState = outOfScope ? "Out of scope (single-node test)" : (hasCapturedValue ? "Not re-checked (skipped/unreachable)" : "Unavailable"),
+				verificationStatus = nodePassed ? "Passed" : "Failed",
+				passed = nodePassed,
+				syncState = nodeSyncState,
 				cluster = metadata.cluster,
 				environment = metadata.environment,
 				setType = application.testConstants.TEST_FRAME.PRIME_SET

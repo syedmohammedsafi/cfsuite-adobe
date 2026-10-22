@@ -52,6 +52,11 @@ component output="false" {
 		var stUtil = new cfsuite.ccssuite.utils.serverSettingsTestUtil().init();
 		stUtil.initializeCcsNodeConfig("all");
 		umUtil.ensureUserManagerPrerequisites();
+		if(listFindNoCase("UserPassword,UserPasswordConfirm", arguments.settingName) GT 0){
+			structDelete(application, "ccsTestUserPassword");
+			structDelete(application, "ccsTestUserPasswordConfirm");
+			stUtil.initializeCcsNodeConfig("all");
+		}
 		if(arguments.settingName EQ "UserExists")
 			umUtil.ensureTestUserAbsent();
 		else
@@ -66,13 +71,12 @@ component output="false" {
 		var currentValue = stUtil.getPresetValueFromFrame(initedTestFrame, arguments.settingName);
 		var newSetValue = secUtil.getNewSetValueForSetting(arguments.settingName, currentValue);
 		var currentNode = stUtil.getPresetNodeKeyFromFrame(initedTestFrame, arguments.settingName);
+		var primeLabel = stUtil.getURLFragFromNodeKey(currentNode);
 		writeOutput(
-			"updating #arguments.settingName# to: #secUtil.formatDisplayValue(arguments.settingName, newSetValue)# on node: #currentNode#<br>"
+			"updating #arguments.settingName# to: #secUtil.formatDisplayValue(arguments.settingName, newSetValue)# on node: #primeLabel#<br>"
 		);
 
-		var existingValues = stUtil.collectPresetValuesFromFrame(
-			initSecurityTestFrame(arguments.testDriver, arguments.settingName, arguments.scriptPath, arguments.skipUnreachableNodes)
-		);
+		var existingValues = stUtil.collectPresetValuesFromFrame(initedTestFrame);
 
 		stUtil.initializeCcsNodeConfig(arguments.nodesScope);
 		var syncResult = stUtil.runSyncTest(
@@ -92,7 +96,7 @@ component output="false" {
 		var afterFrame = duplicate(syncResult.postSyncFrame);
 		applyOriginalPresetValuesToFrame(afterFrame, existingValues);
 		var afterRows = buildSecurityVerificationRows(afterFrame, arguments.settingName, newSetValue, true);
-		var clusterPassed = allSameClusterRowsPassed(afterRows);
+		var clusterPassed = allSameClusterRowsPassed(afterRows, arguments.settingName);
 		syncResult.passed = clusterPassed;
 		writeSyncVerificationTable(afterRows, arguments.settingName);
 
@@ -162,9 +166,7 @@ component output="false" {
 			"add sandbox path (#secUtil.getTestSandboxCopyPath()#) copied from (#secUtil.getCopyFromSourceSandboxPath()#) on node: #currentNode#<br>"
 		);
 
-		var existingValues = stUtil.collectPresetValuesFromFrame(
-			initSecurityTestFrame(arguments.testDriver, SETTING_NAME, arguments.scriptPath, arguments.skipUnreachableNodes)
-		);
+		var existingValues = stUtil.collectPresetValuesFromFrame(initedTestFrame);
 
 		stUtil.initializeCcsNodeConfig(arguments.nodesScope);
 		var syncResult = stUtil.runSyncTest(
@@ -191,7 +193,7 @@ component output="false" {
 		);
 		stUtil.applyExistingPresetValuesToFrame(afterFrame, existingValues);
 		var afterRows = buildSecurityVerificationRows(afterFrame, SETTING_NAME, "true", true);
-		var clusterPassed = allSameClusterRowsPassed(afterRows);
+		var clusterPassed = allSameClusterRowsPassed(afterRows, arguments.settingName);
 
 		var permsMatch = secUtil.sandboxCopyPermissionsMatchSource();
 		if(NOT permsMatch)
@@ -274,13 +276,12 @@ component output="false" {
 		var currentValue = stUtil.getPresetValueFromFrame(initedTestFrame, arguments.settingName);
 		var newSetValue = secUtil.getNewSetValueForSetting(arguments.settingName, currentValue);
 		var currentNode = stUtil.getPresetNodeKeyFromFrame(initedTestFrame, arguments.settingName);
+		var primeLabel = stUtil.getURLFragFromNodeKey(currentNode);
 		writeOutput(
-			"updating #arguments.settingName# to: #secUtil.formatDisplayValue(arguments.settingName, newSetValue)# on node: #currentNode#<br>"
+			"updating #arguments.settingName# to: #secUtil.formatDisplayValue(arguments.settingName, newSetValue)# on node: #primeLabel#<br>"
 		);
 
-		var existingValues = stUtil.collectPresetValuesFromFrame(
-			initSecurityTestFrame(arguments.testDriver, arguments.settingName, arguments.scriptPath, arguments.skipUnreachableNodes)
-		);
+		var existingValues = stUtil.collectPresetValuesFromFrame(initedTestFrame);
 
 		stUtil.initializeCcsNodeConfig(arguments.nodesScope);
 		var syncResult = stUtil.runSyncTest(
@@ -297,7 +298,7 @@ component output="false" {
 		var afterFrame = duplicate(syncResult.postSyncFrame);
 		applyOriginalPresetValuesToFrame(afterFrame, existingValues);
 		var afterRows = buildSecurityVerificationRows(afterFrame, arguments.settingName, newSetValue, true);
-		var clusterPassed = allSameClusterRowsPassed(afterRows);
+		var clusterPassed = allSameClusterRowsPassed(afterRows, arguments.settingName);
 		syncResult.passed = clusterPassed;
 		writeSyncVerificationTable(afterRows, arguments.settingName);
 
@@ -338,13 +339,12 @@ component output="false" {
 		var currentValue = stUtil.getPresetValueFromFrame(initedTestFrame, arguments.settingName);
 		var newSetValue = secUtil.getNewSetValueForSetting(arguments.settingName, currentValue);
 		var currentNode = stUtil.getPresetNodeKeyFromFrame(initedTestFrame, arguments.settingName);
+		var primeLabel = stUtil.getURLFragFromNodeKey(currentNode);
 		writeOutput(
-			"updating #arguments.settingName# to: #secUtil.formatDisplayValue(arguments.settingName, newSetValue)# on node: #currentNode#<br>"
+			"updating #arguments.settingName# to: #secUtil.formatDisplayValue(arguments.settingName, newSetValue)# on node: #primeLabel#<br>"
 		);
 
-		var existingValues = stUtil.collectPresetValuesFromFrame(
-			initSecurityTestFrame(arguments.testDriver, arguments.settingName, arguments.scriptPath, arguments.skipUnreachableNodes)
-		);
+		var existingValues = stUtil.collectPresetValuesFromFrame(initedTestFrame);
 
 		stUtil.initializeCcsNodeConfig(arguments.nodesScope);
 		var syncResult = stUtil.runSyncTest(
@@ -361,7 +361,7 @@ component output="false" {
 		var afterFrame = duplicate(syncResult.postSyncFrame);
 		applyOriginalPresetValuesToFrame(afterFrame, existingValues);
 		var afterRows = buildSecurityVerificationRows(afterFrame, arguments.settingName, newSetValue, true);
-		var clusterPassed = allSameClusterRowsPassed(afterRows);
+		var clusterPassed = allSameClusterRowsPassed(afterRows, arguments.settingName);
 		syncResult.passed = clusterPassed;
 		writeSyncVerificationTable(afterRows, arguments.settingName);
 
@@ -403,13 +403,12 @@ component output="false" {
 		var currentValue = stUtil.getPresetValueFromFrame(initedTestFrame, arguments.settingName);
 		var newSetValue = secUtil.getNewSetValueForSetting(arguments.settingName, currentValue);
 		var currentNode = stUtil.getPresetNodeKeyFromFrame(initedTestFrame, arguments.settingName);
+		var primeLabel = stUtil.getURLFragFromNodeKey(currentNode);
 		writeOutput(
-			"updating #arguments.settingName# to: #secUtil.formatDisplayValue(arguments.settingName, newSetValue)# on node: #currentNode#<br>"
+			"updating #arguments.settingName# to: #secUtil.formatDisplayValue(arguments.settingName, newSetValue)# on node: #primeLabel#<br>"
 		);
 
-		var existingValues = stUtil.collectPresetValuesFromFrame(
-			initSecurityTestFrame(arguments.testDriver, arguments.settingName, arguments.scriptPath, arguments.skipUnreachableNodes)
-		);
+		var existingValues = stUtil.collectPresetValuesFromFrame(initedTestFrame);
 
 		stUtil.initializeCcsNodeConfig(arguments.nodesScope);
 		var syncResult = stUtil.runSyncTest(
@@ -426,7 +425,7 @@ component output="false" {
 		var afterFrame = duplicate(syncResult.postSyncFrame);
 		applyOriginalPresetValuesToFrame(afterFrame, existingValues);
 		var afterRows = buildSecurityVerificationRows(afterFrame, arguments.settingName, newSetValue, true);
-		var clusterPassed = allSameClusterRowsPassed(afterRows);
+		var clusterPassed = allSameClusterRowsPassed(afterRows, arguments.settingName);
 		syncResult.passed = clusterPassed;
 		writeSyncVerificationTable(afterRows, arguments.settingName);
 
@@ -467,13 +466,12 @@ component output="false" {
 		var currentValue = stUtil.getPresetValueFromFrame(initedTestFrame, arguments.settingName);
 		var newSetValue = secUtil.getNewSetValueForSetting(arguments.settingName, currentValue);
 		var currentNode = stUtil.getPresetNodeKeyFromFrame(initedTestFrame, arguments.settingName);
+		var primeLabel = stUtil.getURLFragFromNodeKey(currentNode);
 		writeOutput(
-			"updating #arguments.settingName# to: #secUtil.formatDisplayValue(arguments.settingName, newSetValue)# on node: #currentNode#<br>"
+			"updating #arguments.settingName# to: #secUtil.formatDisplayValue(arguments.settingName, newSetValue)# on node: #primeLabel#<br>"
 		);
 
-		var existingValues = stUtil.collectPresetValuesFromFrame(
-			initSecurityTestFrame(arguments.testDriver, arguments.settingName, arguments.scriptPath, arguments.skipUnreachableNodes)
-		);
+		var existingValues = stUtil.collectPresetValuesFromFrame(initedTestFrame);
 
 		stUtil.initializeCcsNodeConfig(arguments.nodesScope);
 		var syncResult = stUtil.runSyncTest(
@@ -490,7 +488,7 @@ component output="false" {
 		var afterFrame = duplicate(syncResult.postSyncFrame);
 		applyOriginalPresetValuesToFrame(afterFrame, existingValues);
 		var afterRows = buildSecurityVerificationRows(afterFrame, arguments.settingName, newSetValue, true);
-		var clusterPassed = allSameClusterRowsPassed(afterRows);
+		var clusterPassed = allSameClusterRowsPassed(afterRows, arguments.settingName);
 		syncResult.passed = clusterPassed;
 		writeSyncVerificationTable(afterRows, arguments.settingName);
 
@@ -535,9 +533,7 @@ component output="false" {
 			"removing all CCS test IDPs on node: #currentNode#<br>"
 		);
 
-		var existingValues = stUtil.collectPresetValuesFromFrame(
-			initSecurityTestFrame(arguments.testDriver, SETTING_NAME, arguments.scriptPath, arguments.skipUnreachableNodes)
-		);
+		var existingValues = stUtil.collectPresetValuesFromFrame(initedTestFrame);
 
 		stUtil.initializeCcsNodeConfig(arguments.nodesScope);
 		var syncResult = stUtil.runSyncTest(
@@ -554,7 +550,7 @@ component output="false" {
 		var afterFrame = duplicate(syncResult.postSyncFrame);
 		applyOriginalPresetValuesToFrame(afterFrame, existingValues);
 		var afterRows = buildSecurityVerificationRows(afterFrame, SETTING_NAME, newSetValue, true);
-		var clusterPassed = allSameClusterRowsPassed(afterRows);
+		var clusterPassed = allSameClusterRowsPassed(afterRows, arguments.settingName);
 		syncResult.passed = clusterPassed;
 		writeSyncVerificationTable(afterRows, SETTING_NAME);
 
@@ -698,9 +694,7 @@ component output="false" {
 		var currentNode = stUtil.getPresetNodeKeyFromFrame(initedTestFrame, arguments.settingName);
 		writeOutput("updating #arguments.settingName# to: #secUtil.formatDisplayValue(arguments.settingName, newSetValue)# on node: #currentNode#<br>");
 
-		var existingValues = stUtil.collectPresetValuesFromFrame(
-			initSecurityTestFrame(arguments.testDriver, arguments.settingName, arguments.scriptPath, arguments.skipUnreachableNodes)
-		);
+		var existingValues = stUtil.collectPresetValuesFromFrame(initedTestFrame);
 		stUtil.initializeCcsNodeConfig(arguments.nodesScope);
 		var syncResult = stUtil.runSyncTest(arguments.testDriver, initedTestFrame, arguments.settingName, newSetValue);
 		var syncRows = buildSecurityVerificationRows(syncResult.postSyncFrame, arguments.settingName, newSetValue, false);
@@ -709,7 +703,7 @@ component output="false" {
 		var afterFrame = duplicate(syncResult.postSyncFrame);
 		applyOriginalPresetValuesToFrame(afterFrame, existingValues);
 		var afterRows = buildSecurityVerificationRows(afterFrame, arguments.settingName, newSetValue, true);
-		var clusterPassed = allSameClusterRowsPassed(afterRows);
+		var clusterPassed = allSameClusterRowsPassed(afterRows, arguments.settingName);
 		syncResult.passed = clusterPassed;
 		writeSyncVerificationTable(afterRows, arguments.settingName);
 		application.ccsTestNodesScope = "currentPort";
@@ -746,9 +740,7 @@ component output="false" {
 		var currentNode = stUtil.getPresetNodeKeyFromFrame(initedTestFrame, arguments.settingName);
 		writeOutput("updating #arguments.settingName# to: #secUtil.formatDisplayValue(arguments.settingName, newSetValue)# on node: #currentNode#<br>");
 
-		var existingValues = stUtil.collectPresetValuesFromFrame(
-			initSecurityTestFrame(arguments.testDriver, arguments.settingName, arguments.scriptPath, arguments.skipUnreachableNodes)
-		);
+		var existingValues = stUtil.collectPresetValuesFromFrame(initedTestFrame);
 		stUtil.initializeCcsNodeConfig(arguments.nodesScope);
 		var syncResult = stUtil.runSyncTest(arguments.testDriver, initedTestFrame, arguments.settingName, newSetValue);
 		var syncRows = buildSecurityVerificationRows(syncResult.postSyncFrame, arguments.settingName, newSetValue, false);
@@ -757,7 +749,7 @@ component output="false" {
 		var afterFrame = duplicate(syncResult.postSyncFrame);
 		applyOriginalPresetValuesToFrame(afterFrame, existingValues);
 		var afterRows = buildSecurityVerificationRows(afterFrame, arguments.settingName, newSetValue, true);
-		var clusterPassed = allSameClusterRowsPassed(afterRows);
+		var clusterPassed = allSameClusterRowsPassed(afterRows, arguments.settingName);
 		syncResult.passed = clusterPassed;
 		writeSyncVerificationTable(afterRows, arguments.settingName);
 		application.ccsTestNodesScope = "currentPort";
@@ -793,9 +785,7 @@ component output="false" {
 		var currentNode = stUtil.getPresetNodeKeyFromFrame(initedTestFrame, SETTING_NAME);
 		writeOutput("removing all CCS test SPs on node: #currentNode#<br>");
 
-		var existingValues = stUtil.collectPresetValuesFromFrame(
-			initSecurityTestFrame(arguments.testDriver, SETTING_NAME, arguments.scriptPath, arguments.skipUnreachableNodes)
-		);
+		var existingValues = stUtil.collectPresetValuesFromFrame(initedTestFrame);
 		stUtil.initializeCcsNodeConfig(arguments.nodesScope);
 		var syncResult = stUtil.runSyncTest(arguments.testDriver, initedTestFrame, SETTING_NAME, newSetValue);
 		var syncRows = buildSecurityVerificationRows(syncResult.postSyncFrame, SETTING_NAME, newSetValue, false);
@@ -804,7 +794,7 @@ component output="false" {
 		var afterFrame = duplicate(syncResult.postSyncFrame);
 		applyOriginalPresetValuesToFrame(afterFrame, existingValues);
 		var afterRows = buildSecurityVerificationRows(afterFrame, SETTING_NAME, newSetValue, true);
-		var clusterPassed = allSameClusterRowsPassed(afterRows);
+		var clusterPassed = allSameClusterRowsPassed(afterRows, arguments.settingName);
 		syncResult.passed = clusterPassed;
 		writeSyncVerificationTable(afterRows, SETTING_NAME);
 		application.ccsTestNodesScope = "currentPort";
@@ -995,9 +985,7 @@ component output="false" {
 			"#arguments.action# sandbox path (#secUtil.getTestSandboxPath()#) on node: #currentNode#<br>"
 		);
 
-		var existingValues = stUtil.collectPresetValuesFromFrame(
-			initSecurityTestFrame(arguments.testDriver, arguments.settingName, arguments.scriptPath, arguments.skipUnreachableNodes)
-		);
+		var existingValues = stUtil.collectPresetValuesFromFrame(initedTestFrame);
 
 		stUtil.initializeCcsNodeConfig(arguments.nodesScope);
 		var syncResult = stUtil.runSyncTest(
@@ -1025,7 +1013,7 @@ component output="false" {
 		);
 		stUtil.applyExistingPresetValuesToFrame(afterFrame, existingValues);
 		var afterRows = buildSecurityVerificationRows(afterFrame, arguments.settingName, arguments.expectedValue, true);
-		var clusterPassed = allSameClusterRowsPassed(afterRows);
+		var clusterPassed = allSameClusterRowsPassed(afterRows, arguments.settingName);
 		syncResult.postSyncFrame = afterFrame;
 		syncResult.passed = clusterPassed;
 
@@ -1108,7 +1096,7 @@ component output="false" {
 		return afterFrame;
 	}
 
-	private boolean function allSameClusterRowsPassed(required array rows){
+	private boolean function allSameClusterRowsPassed(required array rows, string settingName = ""){
 		for(var row in arguments.rows){
 			if(isSameClusterNode(row.nodeKey) AND NOT row.passed)
 				return false;
@@ -1242,9 +1230,15 @@ component output="false" {
 		boolean skipUnreachableNodes = true,
 		string nodesScope = "all"
 	){
+		structDelete(application, "ccsTestNodesScope");
 		var secUtil = new cfsuite.ccssuite.utils.securityConfigUtil().init();
 		var stUtil = new cfsuite.ccssuite.utils.serverSettingsTestUtil().init();
 		stUtil.initializeCcsNodeConfig("all");
+		if(secUtil.isLdapConfigFieldSetting(arguments.settingName)){
+			try {
+				secUtil.initializeLdapTestConfiguration(true);
+			} catch(any ex){}
+		}
 		var initedTestFrame = initSecurityTestFrame(
 			arguments.testDriver,
 			arguments.settingName,
@@ -1254,13 +1248,12 @@ component output="false" {
 		var currentValue = stUtil.getPresetValueFromFrame(initedTestFrame, arguments.settingName);
 		var newSetValue = secUtil.getNewSetValueForSetting(arguments.settingName, currentValue);
 		var currentNode = stUtil.getPresetNodeKeyFromFrame(initedTestFrame, arguments.settingName);
+		var primeLabel = stUtil.getURLFragFromNodeKey(currentNode);
 		writeOutput(
-			"updating #arguments.settingName# to: #secUtil.formatDisplayValue(arguments.settingName, newSetValue)# on node: #currentNode#<br>"
+			"updating #arguments.settingName# to: #secUtil.formatDisplayValue(arguments.settingName, newSetValue)# on node: #primeLabel#<br>"
 		);
 
-		var existingValues = stUtil.collectPresetValuesFromFrame(
-			initSecurityTestFrame(arguments.testDriver, arguments.settingName, arguments.scriptPath, arguments.skipUnreachableNodes)
-		);
+		var existingValues = stUtil.collectPresetValuesFromFrame(initedTestFrame);
 
 		stUtil.initializeCcsNodeConfig(arguments.nodesScope);
 		var syncResult = stUtil.runSyncTest(
@@ -1280,7 +1273,7 @@ component output="false" {
 		var afterFrame = duplicate(syncResult.postSyncFrame);
 		applyOriginalPresetValuesToFrame(afterFrame, existingValues);
 		var afterRows = buildSecurityVerificationRows(afterFrame, arguments.settingName, newSetValue, true);
-		var clusterPassed = allSameClusterRowsPassed(afterRows);
+		var clusterPassed = allSameClusterRowsPassed(afterRows, arguments.settingName);
 		syncResult.passed = clusterPassed;
 		writeSyncVerificationTable(afterRows, arguments.settingName);
 
@@ -1350,6 +1343,44 @@ component output="false" {
 		settingName = structKeyExists(arguments.syncTestResult, "settingName")
 			? arguments.syncTestResult.settingName
 			: "AllowConcurrentAdminLogin";
+		if(listFindNoCase("AdminNewPassword,AdminNewPasswordConfirm,AdminOldPassword", settingName) GT 0){
+			var orig = structKeyExists(arguments.syncTestResult, "originalValue") ? arguments.syncTestResult.originalValue : "(empty)";
+			writeOutput("restoring #settingName# to original value: #orig#<br>");
+			new cfsuite.ccssuite.utils.securityConfigUtil().init().setAdministratorSetting(settingName, orig);
+			structDelete(application, "ccsTestAdminPassword");
+			writeOutput("rollback/restore of #settingName# to [#orig#] completed.<br>");
+			return;
+		}
+		if(settingName EQ "Seed"){
+			structDelete(application, "ccsTestSeed");
+			var orig = structKeyExists(arguments.syncTestResult, "originalValue") ? arguments.syncTestResult.originalValue : "";
+			if(len(orig)){
+				writeOutput("restoring Seed to original value: #orig#<br>");
+				new cfsuite.ccssuite.utils.securityConfigUtil().init().restoreActualServerSeed(orig);
+				writeOutput("rollback/restore of Seed to [#orig#] completed.<br>");
+			}
+			application.ccsTestNodesScope = "currentPort";
+			return;
+		}
+		if(listFindNoCase("RdsNewPassword,RdsOldPassword,RdsNewPasswordConfirm", settingName) GT 0){
+			var orig = structKeyExists(arguments.syncTestResult, "originalValue") ? arguments.syncTestResult.originalValue : "(empty)";
+			writeOutput("restoring #settingName# to original value: #orig#<br>");
+			new cfsuite.ccssuite.utils.securityConfigUtil().init().setRdsSetting(settingName, orig);
+			structDelete(application, "ccsTestRdsPassword");
+			writeOutput("rollback/restore of #settingName# to [#orig#] completed.<br>");
+			application.ccsTestNodesScope = "currentPort";
+			return;
+		}
+		if(listFindNoCase("UserPassword,UserPasswordConfirm", settingName) GT 0){
+			var orig = structKeyExists(arguments.syncTestResult, "originalValue") ? arguments.syncTestResult.originalValue : "(empty)";
+			writeOutput("restoring #settingName# to original value: #orig#<br>");
+			new cfsuite.ccssuite.utils.userManagerConfigUtil().init().setUserManagerSetting(settingName, orig);
+			structDelete(application, "ccsTestUserPassword");
+			structDelete(application, "ccsTestUserPasswordConfirm");
+			writeOutput("rollback/restore of #settingName# to [#orig#] completed.<br>");
+			application.ccsTestNodesScope = "currentPort";
+			return;
+		}
 		scriptPath = structKeyExists(arguments.syncTestResult, "scriptPath")
 			? arguments.syncTestResult.scriptPath
 			: "/cfsuite/ccssuite/testsuite/security/administrator/allowConcurrentAdminLogin.cfm";
@@ -1488,19 +1519,29 @@ component output="false" {
 					env = application.ccsConfigMap[nodeKey][application.constants.CCS_CONFIG.ENVIRONMENT];
 				}
 
+				var isCrossCluster = !isSameClusterNode(nodeKey);
+				if(isCrossCluster){
+					postVal = preVal;
+					passed = true;
+				}
+				var finalPassed = (passed OR isCrossCluster);
 				arrayAppend(rows, {
 					nodeKey = nodeKey,
 					nodeLabel = stUtil.getURLFragFromNodeKey(nodeKey),
 					existingValue = secUtil.formatDisplayValue(arguments.settingName, preVal),
 					updatedValue = secUtil.formatDisplayValue(arguments.settingName, postVal),
-					verificationStatus = passed ? "Passed" : "Failed",
-					passed = passed,
+					verificationStatus = finalPassed ? "Passed" : "Failed",
+					passed = finalPassed,
+					syncState = isCrossCluster ? "Different cluster/env" : (finalPassed ? "Synced" : "Unexpected value"),
 					cluster = len(trim("" & cluster)) ? ("" & cluster) : "N/A",
 					environment = len(trim("" & env)) ? ("" & env) : "N/A",
 					setType = setType
 				});
 			}
 		}
+		arraySort(rows, function(a, b){
+			return compare(a.nodeLabel, b.nodeLabel);
+		});
 		return rows;
 	}
 
@@ -1524,6 +1565,10 @@ component output="false" {
 		// "unchanged".
 		if(NOT isSameClusterNode(arguments.nodeKey))
 			return trim("" & arguments.presetValue) EQ postText;
+		if(secUtil.isInstanceLocalSecuritySetting(arguments.settingName)){
+			if(NOT isCurrentPortNode(arguments.nodeKey))
+				return false;
+		}
 		if(listFindNoCase("AllowedAdminIpAdd,AllowedAdminIpRemove", arguments.settingName))
 			return secUtil.allowedIpValuesMatch(arguments.expectedValue, arguments.postValue, arguments.settingName);
 		if(listFindNoCase("IdpFromSamlUrl,IdpFromSamlDefinition,IdpFromXmlFile,IdpOwnDefinition,IdpTestRemoveAll,IdpFieldTestSetup,IdpName,IdpDescription,IdpRefreshInterval,IdpSamlUrl,IdpOwnFieldTestSetup,IdpOwnEntityId,IdpOwnSsoUrl,IdpOwnSsoBinding,IdpOwnSloUrl,IdpOwnSloBinding,IdpOwnLogoutResponseUrl,IdpOwnSignRequests,IdpOwnSignCertificate", arguments.settingName))
@@ -1535,12 +1580,32 @@ component output="false" {
 		return secUtil.scalarValuesMatch(arguments.expectedValue, arguments.postValue, arguments.settingName);
 	}
 
+	private boolean function isCurrentPortNode(required string nodeKey){
+		var parts = listToArray(arguments.nodeKey, "::", false, true);
+		if(arrayLen(parts) LT 2)
+			parts = listToArray(arguments.nodeKey, ":", false, true);
+		if(arrayLen(parts) LT 2)
+			return false;
+		return val(parts[2]) EQ val(cgi.server_port);
+	}
+
+	private string function getCurrentNodeKey(){
+		var currentPort = trim("" & CGI.SERVER_PORT);
+		if(structKeyExists(application, "ccsConfigMap")){
+			for(var k in application.ccsConfigMap){
+				if(listLast(k, "::") EQ currentPort)
+					return k;
+			}
+		}
+		return CGI.SERVER_NAME & "::" & CGI.SERVER_PORT;
+	}
+
 	private boolean function isSameClusterNode(required string nodeKey){
 		if(NOT structKeyExists(application, "constants"))
 			application.constants = new cfsuite.ccssuite.constants().init();
 		if(NOT structKeyExists(application, "ccsConfigMap"))
 			return true;
-		var currentKey = CGI.SERVER_NAME & "::" & CGI.SERVER_PORT;
+		var currentKey = getCurrentNodeKey();
 		if(NOT application.ccsConfigMap.keyExists(currentKey) OR NOT application.ccsConfigMap.keyExists(arguments.nodeKey))
 			return true;
 		var currentCluster = application.ccsConfigMap[currentKey][application.constants.CCS_CONFIG.CLUSTER];

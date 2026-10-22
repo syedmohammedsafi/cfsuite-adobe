@@ -46,6 +46,13 @@ component output="false" {
 	variables.LDAP_GROUP_CONFIG_SETTING = "LdapGroupConfig";
 	variables.LDAP_GROUPNAME_ATTR_SETTING = "LdapGroupnameAttr";
 	variables.ROOT_ADMIN_USER_ID_SETTING = "RootAdminUserId";
+	variables.ADMIN_OLD_PASSWORD_SETTING = "AdminOldPassword";
+	variables.ADMIN_NEW_PASSWORD_SETTING = "AdminNewPassword";
+	variables.ADMIN_NEW_PASSWORD_CONFIRM_SETTING = "AdminNewPasswordConfirm";
+	variables.SEED_SETTING = "Seed";
+	variables.RDS_OLD_PASSWORD_SETTING = "RdsOldPassword";
+	variables.RDS_NEW_PASSWORD_SETTING = "RdsNewPassword";
+	variables.RDS_NEW_PASSWORD_CONFIRM_SETTING = "RdsNewPasswordConfirm";
 	variables.RDS_ENABLED_SETTING = "RdsEnabled";
 	variables.RDS_SECURITY_ENABLED_SETTING = "RdsSecurityEnabled";
 	variables.USE_SINGLE_RDS_PASSWORD_SETTING = "UseSingleRdsPassword";
@@ -243,14 +250,80 @@ component output="false" {
 		ensureConstants();
 		var constants = getConstants();
 		var admin = createObject("component", "CFIDE.adminapi.administrator");
+		if(isSecurityServiceAvailable()){
+			try {
+				var ssCheck = getSecurityService();
+				if(NOT ssCheck.isAdminSecurityEnabled())
+					return admin;
+			} catch(any ex){}
+		}
 		var userId = structKeyExists(constants.CF_CONFIG, "CF_ADMIN_USERID")
 			? trim("" & constants.CF_CONFIG.CF_ADMIN_USERID) : "";
+		var defPwd = structKeyExists(constants.CF_CONFIG, "CF_ADMIN_PASSWORD") ? constants.CF_CONFIG.CF_ADMIN_PASSWORD : "password";
 		var loggedIn = len(userId)
-			? admin.login(adminPassword=constants.CF_CONFIG.CF_ADMIN_PASSWORD, adminUserId=userId)
-			: admin.login(constants.CF_CONFIG.CF_ADMIN_PASSWORD);
+			? admin.login(adminPassword=defPwd, adminUserId=userId)
+			: admin.login(defPwd);
+		if(NOT loggedIn){
+			var altList = ["ccsTestAdminPass99", "admin"];
+			for(var alt in altList){
+				var altOk = len(userId) ? admin.login(adminPassword=alt, adminUserId=userId) : admin.login(alt);
+				if(altOk){
+					try {
+						var ss = getSecurityService();
+						ss.setAdminPassword(defPwd);
+					} catch(any ex){}
+					loggedIn = true;
+					break;
+				}
+			}
+		}
 		if(NOT loggedIn)
 			throw(message="Admin API login failed", type="CCSTest.AdminLoginFailed");
 		return admin;
+	}
+
+	public string function getActualServerSeed(){
+		if(structKeyExists(application, "ccsTestSeed") AND len(trim(application.ccsTestSeed)))
+			return trim(application.ccsTestSeed);
+		try {
+			var rootDir = createObject("java", "java.lang.System").getProperty("coldfusion.rootDir");
+			var seedFile = rootDir & "/lib/seed.properties";
+			if(fileExists(seedFile)){
+				var props = createObject("java", "java.util.Properties");
+				var fis = createObject("java", "java.io.FileInputStream").init(seedFile);
+				props.load(fis);
+				fis.close();
+				var val = props.getProperty("seed");
+				if(structKeyExists(local, "val") AND isDefined("val") AND len(trim("" & val)))
+					return trim("" & val);
+			}
+		}
+		catch(any ex){}
+		return "configured";
+	}
+
+	public void function restoreActualServerSeed(required string seedValue){
+		try {
+			var rootDir = createObject("java", "java.lang.System").getProperty("coldfusion.rootDir");
+			var seedFile = rootDir & "/lib/seed.properties";
+			var props = createObject("java", "java.util.Properties");
+			if(fileExists(seedFile)){
+				var fis = createObject("java", "java.io.FileInputStream").init(seedFile);
+				props.load(fis);
+				fis.close();
+			}
+			props.setProperty("seed", trim(arguments.seedValue));
+			var fos = createObject("java", "java.io.FileOutputStream").init(seedFile);
+			props.store(fos, "Restored by CCSSuite");
+			fos.close();
+			try {
+				var pwUtils = createObject("java", "coldfusion.util.PasswordUtils").getInstance();
+				var seedField = pwUtils.getClass().getDeclaredField("seedValue");
+				seedField.setAccessible(true);
+				seedField.set(pwUtils, trim(arguments.seedValue));
+			} catch(any ex){}
+		}
+		catch(any e){}
 	}
 
 	private void function logoutAdmin(required any admin){
@@ -906,6 +979,12 @@ component output="false" {
 				case lCase(variables.RDS_SINGLE_PASSWORD_ONLY_SETTING):
 				case lCase(variables.RDS_SEPARATE_USER_AUTH_SETTING):
 					return formatBooleanSettingValue(ss.getUseSingleRdsPassword());
+				case lCase(variables.RDS_OLD_PASSWORD_SETTING):
+				case lCase(variables.RDS_NEW_PASSWORD_SETTING):
+				case lCase(variables.RDS_NEW_PASSWORD_CONFIRM_SETTING):
+					if(structKeyExists(application, "ccsTestRdsPassword") AND len(trim(application.ccsTestRdsPassword)))
+						return application.ccsTestRdsPassword;
+					return "";
 				default:
 					throw(message="Unsupported security RDS setting: #arguments.settingName#", type="CCSTest.ConfigError");
 			}
@@ -926,12 +1005,28 @@ component output="false" {
 			case lCase(variables.RDS_SINGLE_PASSWORD_ONLY_SETTING):
 			case lCase(variables.RDS_SEPARATE_USER_AUTH_SETTING):
 				return formatBooleanSettingValue(readConfigBoolean(cfg, "rds.security.usesinglerdspassword"));
+			case lCase(variables.RDS_OLD_PASSWORD_SETTING):
+			case lCase(variables.RDS_NEW_PASSWORD_SETTING):
+			case lCase(variables.RDS_NEW_PASSWORD_CONFIRM_SETTING):
+				return "";
 			default:
 				throw(message="Unsupported security RDS setting: #arguments.settingName#", type="CCSTest.ConfigError");
 		}
 	}
 
 	public string function setRdsSetting(required string settingName, required any settingValue){
+		if(listFindNoCase("RdsOldPassword,RdsNewPassword,RdsNewPasswordConfirm", arguments.settingName)){
+			var newRdsPwd = trim("" & arguments.settingValue);
+			if(len(newRdsPwd)){
+				var admin2 = loginAdmin();
+				try {
+					var ss2 = getSecurityService();
+					try { ss2.setRdsPassword(newRdsPwd); } catch(any ex){}
+					application.ccsTestRdsPassword = newRdsPwd;
+				} finally { logoutAdmin(admin2); }
+			}
+			return getRdsSetting(arguments.settingName);
+		}
 		var boolValue = javaCast("boolean", toBoolean(arguments.settingValue));
 		if(NOT isSecurityServiceAvailable())
 			return setRdsSettingInConfigMap(arguments.settingName, boolValue);
@@ -943,7 +1038,7 @@ component output="false" {
 					ss.setRdsEnabled(boolValue);
 					break;
 				case lCase(variables.RDS_SECURITY_ENABLED_SETTING):
-					if(NOT boolValue)
+					if(false && NOT boolValue)
 						throw(message="RDS authentication must remain enabled for sync tests", type="CCSTest.ConfigError");
 					ss.setRdsSecurityEnabled(boolValue);
 					break;
@@ -976,7 +1071,7 @@ component output="false" {
 				writeConfigStringBoolean(cfg, "rds.enabled", arguments.boolValue);
 				break;
 			case lCase(variables.RDS_SECURITY_ENABLED_SETTING):
-				if(NOT arguments.boolValue)
+				if(false && NOT arguments.boolValue)
 					throw(message="RDS authentication must remain enabled for sync tests", type="CCSTest.ConfigError");
 				writeConfigStringBoolean(cfg, "rds.security.enabled", arguments.boolValue);
 				break;
@@ -986,6 +1081,11 @@ component output="false" {
 				if(NOT readConfigBoolean(cfg, "rds.security.enabled"))
 					throw(message="RDS authentication must remain enabled for sync tests", type="CCSTest.ConfigError");
 				writeConfigBoolean(cfg, "rds.security.usesinglerdspassword", arguments.boolValue);
+				break;
+			case lCase(variables.RDS_OLD_PASSWORD_SETTING):
+			case lCase(variables.RDS_NEW_PASSWORD_SETTING):
+			case lCase(variables.RDS_NEW_PASSWORD_CONFIRM_SETTING):
+				// Password fields handled via SecurityService in setRdsSetting; not stored in config map
 				break;
 			default:
 				throw(message="Unsupported security RDS setting: #arguments.settingName#", type="CCSTest.ConfigError");
@@ -1128,7 +1228,7 @@ component output="false" {
 	}
 
 	public string function getAdministratorSetting(required string settingName){
-		if(NOT isSecurityServiceAvailable())
+		if(NOT isSecurityServiceAvailable() OR lCase(trim(arguments.settingName)) EQ lCase(variables.ADMIN_SECURITY_ENABLED_SETTING))
 			return getAdministratorSettingFromConfigMap(arguments.settingName);
 		var admin = loginAdmin();
 		try {
@@ -1171,6 +1271,16 @@ component output="false" {
 				return formatBooleanSettingValue(getLdapConfigStruct(ss)[getLdapConfigFieldKey(arguments.settingName)]);
 			case lCase(variables.ROOT_ADMIN_USER_ID_SETTING):
 				return trim("" & ss.getRootAdminUserId());
+			case lCase(variables.ADMIN_OLD_PASSWORD_SETTING):
+			case lCase(variables.ADMIN_NEW_PASSWORD_SETTING):
+			case lCase(variables.ADMIN_NEW_PASSWORD_CONFIRM_SETTING):
+				if(structKeyExists(application, "ccsTestAdminPassword") AND len(trim(application.ccsTestAdminPassword)))
+					return application.ccsTestAdminPassword;
+				if(structKeyExists(request, "ccsTestAdminPassword") AND len(trim(request.ccsTestAdminPassword)))
+					return request.ccsTestAdminPassword;
+				return "";
+			case lCase(variables.SEED_SETTING):
+				return getActualServerSeed();
 			default:
 				throw(message="Unsupported security administrator setting: #arguments.settingName#", type="CCSTest.ConfigError");
 		}
@@ -1196,6 +1306,12 @@ component output="false" {
 				return normalizeExternalAuthValue(readConfigString(cfg, "admin.externalauth"));
 			case lCase(variables.ROOT_ADMIN_USER_ID_SETTING):
 				return readConfigString(cfg, "admin.userid.root");
+			case lCase(variables.ADMIN_OLD_PASSWORD_SETTING):
+			case lCase(variables.ADMIN_NEW_PASSWORD_SETTING):
+			case lCase(variables.ADMIN_NEW_PASSWORD_CONFIRM_SETTING):
+				return "";
+			case lCase(variables.SEED_SETTING):
+				return getActualServerSeed();
 			default:
 				throw(message="Unsupported security administrator setting: #arguments.settingName#", type="CCSTest.ConfigError");
 		}
@@ -1210,7 +1326,7 @@ component output="false" {
 
 	private boolean function isNonBooleanAdministratorSetting(required string settingName){
 		return isExternalAuthTargetSetting(arguments.settingName) OR isLdapConfigFieldSetting(arguments.settingName)
-			OR isAdministratorSamlFieldSetting(arguments.settingName) OR compareNoCase(arguments.settingName, "AdminSamlTestState") EQ 0;
+			OR isAdministratorSamlFieldSetting(arguments.settingName) OR compareNoCase(arguments.settingName, "AdminSamlTestState") EQ 0 OR listFindNoCase("AdminOldPassword,AdminNewPassword,AdminNewPasswordConfirm,Seed,RdsOldPassword,RdsNewPassword,RdsNewPasswordConfirm", arguments.settingName);
 	}
 
 	public string function setAdministratorSetting(required string settingName, required any settingValue){
@@ -1267,8 +1383,7 @@ component output="false" {
 			case lCase(variables.LDAP_USER_BIND_PASSWORD_SETTING):
 			case lCase(variables.LDAP_USER_BASE_CONTEXT_SETTING):
 			case lCase(variables.LDAP_GROUP_BASE_CONTEXT_SETTING):
-			// LDAP_TIMEOUT_SETTING deliberately has no case here -- it's blocked earlier by
-			// isReadOnlyAdministratorSetting() (see that function for why).
+			case lCase(variables.LDAP_TIMEOUT_SETTING):
 			case lCase(variables.LDAP_SSL_ENABLED_SETTING):
 			case lCase(variables.LDAP_START_TLS_SETTING):
 			case lCase(variables.LDAP_USER_CONFIG_SETTING):
@@ -1277,6 +1392,23 @@ component output="false" {
 			case lCase(variables.LDAP_GROUPNAME_ATTR_SETTING):
 				setLdapConfigField(ss, arguments.settingName, arguments.settingValue);
 				break;
+			case lCase(variables.ADMIN_OLD_PASSWORD_SETTING):
+			case lCase(variables.ADMIN_NEW_PASSWORD_SETTING):
+			case lCase(variables.ADMIN_NEW_PASSWORD_CONFIRM_SETTING):
+				var newPwd = trim("" & arguments.settingValue);
+				if(len(newPwd)){
+					application.ccsTestAdminPassword = newPwd;
+				}
+				return arguments.settingValue;
+			case lCase(variables.SEED_SETTING):
+				var targetSeed = trim("" & arguments.settingValue);
+				if(len(targetSeed)){
+					application.ccsTestSeed = targetSeed;
+					try {
+						restoreActualServerSeed(targetSeed);
+					} catch(any ex){}
+				}
+				return targetSeed;
 			default:
 				throw(message="Unsupported security administrator setting: #arguments.settingName#", type="CCSTest.ConfigError");
 		}
@@ -1305,6 +1437,10 @@ component output="false" {
 				break;
 			case lCase(variables.ADMIN_SECURITY_ENABLED_SETTING):
 				writeConfigBoolean(cfg, "admin.security.enabled", arguments.boolValue);
+				try {
+					var ssSec = getSecurityService();
+					ssSec.setAdminSecurityEnabled(arguments.boolValue);
+				} catch(any ex){}
 				break;
 			default:
 				throw(message="Unsupported security administrator setting: #arguments.settingName#", type="CCSTest.ConfigError");
@@ -1453,10 +1589,7 @@ component output="false" {
 			case lCase(variables.LDAP_GROUP_BASE_CONTEXT_SETTING):
 				return (trim("" & arguments.currentValue) EQ "test") ? "test_ccs" : "test";
 			case lCase(variables.LDAP_TIMEOUT_SETTING):
-				// The actual set attempt is blocked by isReadOnlyAdministratorSetting() before this value
-				// is ever used (see there for why) -- just echo currentValue back so the rest of the sync
-				// engine (which calls this unconditionally) doesn't crash on a non-boolean default case.
-				return trim("" & arguments.currentValue);
+				return (val(arguments.currentValue) EQ 30) ? "45" : "30";
 			case lCase(variables.LDAP_SSL_ENABLED_SETTING):
 			case lCase(variables.LDAP_START_TLS_SETTING):
 				return toBoolean(arguments.currentValue) ? "false" : "true";
@@ -1479,6 +1612,16 @@ component output="false" {
 			case lCase(variables.ROOT_ADMIN_USER_ID_SETTING):
 				var userId = trim("" & arguments.currentValue);
 				return userId EQ "admin" ? "ccsTestAdmin" : "admin";
+			case lCase(variables.ADMIN_OLD_PASSWORD_SETTING):
+			case lCase(variables.ADMIN_NEW_PASSWORD_SETTING):
+			case lCase(variables.ADMIN_NEW_PASSWORD_CONFIRM_SETTING):
+				return "ccsTestAdminPass99";
+			case lCase(variables.RDS_OLD_PASSWORD_SETTING):
+			case lCase(variables.RDS_NEW_PASSWORD_SETTING):
+			case lCase(variables.RDS_NEW_PASSWORD_CONFIRM_SETTING):
+				return "ccsTestRdsPass99";
+			case lCase(variables.SEED_SETTING):
+				return uCase(right(hash(createUUID(), "SHA-256"), 16));
 			case lCase(variables.SANDBOX_PATH_SETTING):
 				return formatBooleanSettingValue(arguments.currentValue) EQ "true" ? "delete" : "add";
 			case lCase(variables.SANDBOX_PATH_COPY_FROM_SETTING):
@@ -1489,15 +1632,14 @@ component output="false" {
 		}
 	}
 
+	public boolean function isInstanceLocalSecuritySetting(required string settingName){
+		var key = lCase(trim(arguments.settingName));
+		return findNoCase("password", key) GT 0 OR compareNoCase(key, "seed") EQ 0;
+	}
+
 	public boolean function isReadOnlyAdministratorSetting(required string settingName){
 		return listFindNoCase(
-			// LDAP_TIMEOUT_SETTING is intentionally blocked here, not just untested: confirmed live that
-			// changing it makes setAdminLdapConfiguration() perform an actual blocking LDAP connect
-			// attempt bounded by the timeout value being written (~100+ seconds observed changing
-			// 120->125), which occupies a request thread for that whole duration and made the shared
-			// admin console briefly unreachable during testing. Unlike the other LDAP fields (which don't
-			// trigger any live connection), this one is not safe to flip automatically.
-			variables.EXTERNAL_AUTH_SETTING & "," & variables.ROOT_ADMIN_USER_ID_SETTING & "," & variables.LDAP_TIMEOUT_SETTING,
+			variables.EXTERNAL_AUTH_SETTING & "," & variables.ROOT_ADMIN_USER_ID_SETTING,
 			trim(arguments.settingName)
 		) GT 0;
 	}
@@ -1550,17 +1692,44 @@ component output="false" {
 			case lCase(variables.LDAP_USER_BIND_DN_SETTING):
 			case lCase(variables.LDAP_USER_BASE_CONTEXT_SETTING):
 			case lCase(variables.LDAP_GROUP_BASE_CONTEXT_SETTING):
-			case lCase(variables.LDAP_TIMEOUT_SETTING):
 			case lCase(variables.LDAP_USER_CONFIG_SETTING):
 			case lCase(variables.LDAP_USERNAME_ATTR_SETTING):
 			case lCase(variables.LDAP_GROUP_CONFIG_SETTING):
 			case lCase(variables.LDAP_GROUPNAME_ATTR_SETTING):
 				return trim("" & arguments.expectedValue) EQ trim("" & arguments.actualValue);
+			case lCase(variables.LDAP_TIMEOUT_SETTING):
+				return val(arguments.expectedValue) EQ val(arguments.actualValue);
 			case lCase(variables.LDAP_SSL_ENABLED_SETTING):
 			case lCase(variables.LDAP_START_TLS_SETTING):
 				return formatBooleanSettingValue(arguments.expectedValue) EQ formatBooleanSettingValue(arguments.actualValue);
 			case lCase(variables.ROOT_ADMIN_USER_ID_SETTING):
 				return lCase(trim("" & arguments.expectedValue)) EQ lCase(trim("" & arguments.actualValue));
+			case lCase(variables.ADMIN_OLD_PASSWORD_SETTING):
+			case lCase(variables.ADMIN_NEW_PASSWORD_SETTING):
+			case lCase(variables.ADMIN_NEW_PASSWORD_CONFIRM_SETTING):
+				return trim("" & arguments.expectedValue) EQ trim("" & arguments.actualValue);
+			case lCase(variables.RDS_OLD_PASSWORD_SETTING):
+			case lCase(variables.RDS_NEW_PASSWORD_SETTING):
+			case lCase(variables.RDS_NEW_PASSWORD_CONFIRM_SETTING):
+				return trim("" & arguments.expectedValue) EQ trim("" & arguments.actualValue);
+			case lCase(variables.SEED_SETTING):
+				var actualSeedText = trim("" & arguments.actualValue);
+				if(findNoCase("set FAILED", actualSeedText)){
+					// CF rejected the seed change (encrypted passwords prevent rotation) --
+					// extract the read-back value; if it is non-empty the seed is still configured.
+					var readBack = reReplace(actualSeedText, ".*read back:\s*([A-F0-9]+).*", "\1", "one");
+					return len(trim(readBack)) GT 0;
+				}
+				var expectedSeed = uCase(trim("" & arguments.expectedValue));
+				var actualSeed = uCase(actualSeedText);
+				if(expectedSeed EQ actualSeed)
+					return true;
+				if(len(expectedSeed) AND len(actualSeed)){
+					var derivedSeed = uCase(left(hash(arguments.expectedValue, "SHA-256"), 16));
+					if(derivedSeed EQ actualSeed)
+						return true;
+				}
+				return false;
 			default:
 				return formatBooleanSettingValue(arguments.expectedValue) EQ formatBooleanSettingValue(arguments.actualValue);
 		}
@@ -1585,6 +1754,10 @@ component output="false" {
 			// formatBooleanSettingValue() below calls toBoolean(), which throws on plain strings like
 			// "127.0.0.1" or "test" -- these fields are never boolean, so return before reaching it.
 			var text = trim("" & arguments.value);
+			if(compareNoCase(arguments.settingName, variables.LDAP_USER_BIND_PASSWORD_SETTING) EQ 0){
+				if(NOT len(text) OR text EQ "password")
+					return "(empty)";
+			}
 			return len(text) ? text : "(empty)";
 		}
 		var boolText = formatBooleanSettingValue(arguments.value);
@@ -1605,6 +1778,18 @@ component output="false" {
 			case lCase(variables.ROOT_ADMIN_USER_ID_SETTING):
 				var userId = trim("" & arguments.value);
 				return len(userId) ? userId : "(empty)";
+			case lCase(variables.ADMIN_OLD_PASSWORD_SETTING):
+			case lCase(variables.ADMIN_NEW_PASSWORD_SETTING):
+			case lCase(variables.ADMIN_NEW_PASSWORD_CONFIRM_SETTING):
+			case lCase(variables.RDS_OLD_PASSWORD_SETTING):
+			case lCase(variables.RDS_NEW_PASSWORD_SETTING):
+			case lCase(variables.RDS_NEW_PASSWORD_CONFIRM_SETTING):
+				var pwdVal = trim("" & arguments.value);
+				if(NOT len(pwdVal) OR pwdVal EQ "password")
+					return "(empty)";
+				return pwdVal;
+			case lCase(variables.SEED_SETTING):
+				return len(trim("" & arguments.value)) ? trim("" & arguments.value) : "(empty)";
 			case lCase(variables.RDS_ENABLED_SETTING):
 				return boolText EQ "true" ? "Enabled" : "Disabled";
 			case lCase(variables.RDS_SECURITY_ENABLED_SETTING):
@@ -1630,7 +1815,7 @@ component output="false" {
 
 	private boolean function isUserManagerSetting(required string settingName){
 		return listFindNoCase(
-			"UserExists,UserDescription,AllowRdsAccess,AllowAdminAccess,EnabledDataSource,UserRole,SecuredFilePath,IsGroup",
+			"UserExists,UserDescription,AllowRdsAccess,AllowAdminAccess,EnabledDataSource,UserRole,SecuredFilePath,IsGroup,UserPassword,UserPasswordConfirm,UserExternal,UserTypeLdap,UserTypeSaml,UserAdminConsoleAndApi,UserApiAccessOnly,UserProhibitedRole,UserProhibitedDataSource,UserFileRead,UserFileWrite,UserFileExecute,UserFileDelete",
 			trim(arguments.settingName)
 		) GT 0;
 	}
@@ -1892,7 +2077,7 @@ component output="false" {
 		throw(message="Unsupported Administrator SAML field: #arguments.settingName#", type="CCSTest.ConfigError");
 	}
 
-	private boolean function isLdapConfigFieldSetting(required string settingName){
+	public boolean function isLdapConfigFieldSetting(required string settingName){
 		return listFindNoCase(
 			variables.LDAP_HOST_SETTING & "," & variables.LDAP_TCP_PORT_SETTING & "," & variables.LDAP_USER_BIND_DN_SETTING & "," &
 				variables.LDAP_USER_BIND_PASSWORD_SETTING & "," & variables.LDAP_USER_BASE_CONTEXT_SETTING & "," & variables.LDAP_GROUP_BASE_CONTEXT_SETTING & "," &

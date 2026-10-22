@@ -21,6 +21,19 @@ component output="false" {
 	// isLdap/isSaml, which threw an unrecoverable error when set without a real external identity source
 	// (see i.cfm's exclusion table), isGroup is genuinely independent and testable on its own.
 	variables.IS_GROUP_SETTING = "IsGroup";
+	variables.USER_PASSWORD_SETTING = "UserPassword";
+	variables.USER_PASSWORD_CONFIRM_SETTING = "UserPasswordConfirm";
+	variables.USER_EXTERNAL_SETTING = "UserExternal";
+	variables.USER_TYPE_LDAP_SETTING = "UserTypeLdap";
+	variables.USER_TYPE_SAML_SETTING = "UserTypeSaml";
+	variables.USER_ADMIN_CONSOLE_AND_API_SETTING = "UserAdminConsoleAndApi";
+	variables.USER_API_ACCESS_ONLY_SETTING = "UserApiAccessOnly";
+	variables.USER_PROHIBITED_ROLE_SETTING = "UserProhibitedRole";
+	variables.USER_PROHIBITED_DATASOURCE_SETTING = "UserProhibitedDataSource";
+	variables.USER_FILE_READ_SETTING = "UserFileRead";
+	variables.USER_FILE_WRITE_SETTING = "UserFileWrite";
+	variables.USER_FILE_EXECUTE_SETTING = "UserFileExecute";
+	variables.USER_FILE_DELETE_SETTING = "UserFileDelete";
 
 	public function init(){
 		variables.componentVersion = 1;
@@ -29,6 +42,38 @@ component output="false" {
 
 	private any function getSecUtil(){
 		return new cfsuite.ccssuite.utils.securityConfigUtil().init();
+	}
+
+	public boolean function isUserManagerSetting(required string settingName){
+		var key = lCase(trim(arguments.settingName));
+		var supported = [
+			variables.USER_EXISTS_SETTING,
+			variables.USER_DESCRIPTION_SETTING,
+			variables.ALLOW_RDS_ACCESS_SETTING,
+			variables.ALLOW_ADMIN_ACCESS_SETTING,
+			variables.ENABLED_DATA_SOURCE_SETTING,
+			variables.USER_ROLE_SETTING,
+			variables.SECURED_FILE_PATH_SETTING,
+			variables.IS_GROUP_SETTING,
+			variables.USER_PASSWORD_SETTING,
+			variables.USER_PASSWORD_CONFIRM_SETTING,
+			variables.USER_EXTERNAL_SETTING,
+			variables.USER_TYPE_LDAP_SETTING,
+			variables.USER_TYPE_SAML_SETTING,
+			variables.USER_ADMIN_CONSOLE_AND_API_SETTING,
+			variables.USER_API_ACCESS_ONLY_SETTING,
+			variables.USER_PROHIBITED_ROLE_SETTING,
+			variables.USER_PROHIBITED_DATASOURCE_SETTING,
+			variables.USER_FILE_READ_SETTING,
+			variables.USER_FILE_WRITE_SETTING,
+			variables.USER_FILE_EXECUTE_SETTING,
+			variables.USER_FILE_DELETE_SETTING
+		];
+		for(var s in supported){
+			if(lCase(s) EQ key)
+				return true;
+		}
+		return false;
 	}
 
 	public string function getTestUsername(){
@@ -60,7 +105,6 @@ component output="false" {
 		var secUtil = getSecUtil();
 		if(secUtil.getAdministratorSetting("AdminUserIdRequired") NEQ "true")
 			secUtil.setAdministratorSetting("AdminUserIdRequired", true);
-		ensureTestDatasourceRegistered();
 	}
 
 	// EnabledDataSource grants variables.TEST_DATASOURCE on the test user via setUser(enabledds=[...]) --
@@ -70,7 +114,7 @@ component output="false" {
 	// once per node -- no external DB server needed, and nothing here ever actually connects to it, it
 	// only needs to exist by name for the grant to stick.
 	private void function ensureTestDatasourceRegistered(){
-		if(structKeyExists(request, "ccsTestDatasourceReady") AND request.ccsTestDatasourceReady)
+		if(structKeyExists(application, "ccsTestDatasourceReady") AND application.ccsTestDatasourceReady)
 			return;
 		var admin = loginAdmin();
 		try {
@@ -83,7 +127,7 @@ component output="false" {
 		finally {
 			logoutAdmin(admin);
 		}
-		request.ccsTestDatasourceReady = true;
+		application.ccsTestDatasourceReady = true;
 	}
 
 	public boolean function testUserExists(){
@@ -150,6 +194,9 @@ component output="false" {
 			};
 			return snapshot;
 		}
+		catch(any e){
+			return buildBaselineSnapshot();
+		}
 		finally {
 			logoutAdmin(admin);
 		}
@@ -168,7 +215,7 @@ component output="false" {
 			var sec = getSecurityAdminApi();
 			var args = {
 				username = variables.TEST_USER,
-				password = variables.TEST_PASS,
+				password = structKeyExists(arguments.snapshot, "password") AND len(trim(arguments.snapshot.password)) ? arguments.snapshot.password : variables.TEST_PASS,
 				description = structKeyExists(arguments.snapshot, "description") ? arguments.snapshot.description : "",
 				roles = structKeyExists(arguments.snapshot, "roles") AND isArray(arguments.snapshot.roles) ? arguments.snapshot.roles : [],
 				disabledroles = structKeyExists(arguments.snapshot, "disabledroles") AND isArray(arguments.snapshot.disabledroles) ? arguments.snapshot.disabledroles : [],
@@ -204,6 +251,8 @@ component output="false" {
 			}
 			catch(any e){}
 			removeTestUserFromNeo();
+			structDelete(application, "ccsTestUserPassword");
+			structDelete(application, "ccsTestUserPasswordConfirm");
 		}
 		finally {
 			logoutAdmin(admin);
@@ -228,12 +277,14 @@ component output="false" {
 				return formatBooleanSettingValue(readUserSnapshot().allowadminaccess);
 			case lCase(variables.ENABLED_DATA_SOURCE_SETTING):
 				if(NOT testUserExists())
-					return "false";
-				return formatBooleanSettingValue(arrayFindNoCase(readUserSnapshot().enabledds, variables.TEST_DATASOURCE) GT 0);
+					return "";
+				var dss = readUserSnapshot().enabledds;
+				return isArray(dss) AND arrayLen(dss) ? arrayToList(dss) : "";
 			case lCase(variables.USER_ROLE_SETTING):
 				if(NOT testUserExists())
-					return "false";
-				return formatBooleanSettingValue(arrayFindNoCase(readUserSnapshot().roles, variables.TEST_ROLE) GT 0);
+					return "";
+				var rls = readUserSnapshot().roles;
+				return isArray(rls) AND arrayLen(rls) ? arrayToList(rls) : "";
 			case lCase(variables.SECURED_FILE_PATH_SETTING):
 				// Deliberately skips the testUserExists() admin-API round trip the other settings use:
 				// isSecuredFilePathPresentInNeo() already returns false when the user record is missing
@@ -247,6 +298,38 @@ component output="false" {
 				if(NOT testUserExists())
 					return "false";
 				return formatBooleanSettingValue(readUserSnapshot().isgroup);
+			case lCase(variables.USER_PASSWORD_SETTING):
+				return structKeyExists(application, "ccsTestUserPassword") ? application.ccsTestUserPassword : "";
+			case lCase(variables.USER_PASSWORD_CONFIRM_SETTING):
+				return structKeyExists(application, "ccsTestUserPasswordConfirm") ? application.ccsTestUserPasswordConfirm : "";
+			case lCase(variables.USER_EXTERNAL_SETTING):
+				return formatBooleanSettingValue(isExternalUserInNeo());
+			case lCase(variables.USER_TYPE_LDAP_SETTING):
+				return formatBooleanSettingValue(isLdapUserInNeo());
+			case lCase(variables.USER_TYPE_SAML_SETTING):
+				return formatBooleanSettingValue(isSamlUserInNeo());
+			case lCase(variables.USER_ADMIN_CONSOLE_AND_API_SETTING):
+				return formatBooleanSettingValue(isAdminConsoleAndApiInNeo());
+			case lCase(variables.USER_API_ACCESS_ONLY_SETTING):
+				return formatBooleanSettingValue(isApiAccessOnlyInNeo());
+			case lCase(variables.USER_PROHIBITED_ROLE_SETTING):
+				var user = readAuthorizedUserFromNeo();
+				if(structIsEmpty(user)) return "";
+				var dRoles = getNeoUserField(user, "disabledroles", []);
+				return isArray(dRoles) AND arrayLen(dRoles) ? arrayToList(dRoles) : "";
+			case lCase(variables.USER_PROHIBITED_DATASOURCE_SETTING):
+				var user = readAuthorizedUserFromNeo();
+				if(structIsEmpty(user)) return "";
+				var dDS = getNeoUserField(user, "disabledds", []);
+				return isArray(dDS) AND arrayLen(dDS) ? arrayToList(dDS) : "";
+			case lCase(variables.USER_FILE_READ_SETTING):
+				return formatBooleanSettingValue(isUserFileActionPresentInNeo("read"));
+			case lCase(variables.USER_FILE_WRITE_SETTING):
+				return formatBooleanSettingValue(isUserFileActionPresentInNeo("write"));
+			case lCase(variables.USER_FILE_EXECUTE_SETTING):
+				return formatBooleanSettingValue(isUserFileActionPresentInNeo("execute"));
+			case lCase(variables.USER_FILE_DELETE_SETTING):
+				return formatBooleanSettingValue(isUserFileActionPresentInNeo("delete"));
 			default:
 				throw(message="Unsupported user manager setting: #arguments.settingName#", type="CCSTest.ConfigError");
 		}
@@ -280,10 +363,10 @@ component output="false" {
 					snapshot.allowadminapiaccess = false;
 				break;
 			case lCase(variables.ENABLED_DATA_SOURCE_SETTING):
-				snapshot.enabledds = toBoolean(arguments.settingValue) ? [variables.TEST_DATASOURCE] : [];
+				snapshot.enabledds = parseSettingValueToArray(arguments.settingValue, variables.TEST_DATASOURCE);
 				break;
 			case lCase(variables.USER_ROLE_SETTING):
-				snapshot.roles = toBoolean(arguments.settingValue) ? [variables.TEST_ROLE] : [];
+				snapshot.roles = parseSettingValueToArray(arguments.settingValue, variables.TEST_ROLE);
 				break;
 			case lCase(variables.SECURED_FILE_PATH_SETTING):
 				snapshot.securedFilePath = toBoolean(arguments.settingValue);
@@ -291,6 +374,58 @@ component output="false" {
 			case lCase(variables.IS_GROUP_SETTING):
 				snapshot.isgroup = toBoolean(arguments.settingValue);
 				break;
+			case lCase(variables.USER_PASSWORD_SETTING):
+				var passVal = trim("" & arguments.settingValue);
+				if(len(passVal) AND passVal NEQ "(empty)"){
+					application.ccsTestUserPassword = passVal;
+					snapshot.password = passVal;
+				}
+				else {
+					structDelete(application, "ccsTestUserPassword");
+				}
+				break;
+			case lCase(variables.USER_PASSWORD_CONFIRM_SETTING):
+				var confirmVal = trim("" & arguments.settingValue);
+				if(len(confirmVal) AND confirmVal NEQ "(empty)"){
+					application.ccsTestUserPasswordConfirm = confirmVal;
+				}
+				else {
+					structDelete(application, "ccsTestUserPasswordConfirm");
+				}
+				return getUserManagerSetting(arguments.settingName);
+			case lCase(variables.USER_EXTERNAL_SETTING):
+				setExternalUserInNeo(toBoolean(arguments.settingValue));
+				return getUserManagerSetting(arguments.settingName);
+			case lCase(variables.USER_TYPE_LDAP_SETTING):
+				setLdapUserInNeo(toBoolean(arguments.settingValue));
+				return getUserManagerSetting(arguments.settingName);
+			case lCase(variables.USER_TYPE_SAML_SETTING):
+				setSamlUserInNeo(toBoolean(arguments.settingValue));
+				return getUserManagerSetting(arguments.settingName);
+			case lCase(variables.USER_ADMIN_CONSOLE_AND_API_SETTING):
+				setAdminConsoleAndApiInNeo(toBoolean(arguments.settingValue));
+				return getUserManagerSetting(arguments.settingName);
+			case lCase(variables.USER_API_ACCESS_ONLY_SETTING):
+				setApiAccessOnlyInNeo(toBoolean(arguments.settingValue));
+				return getUserManagerSetting(arguments.settingName);
+			case lCase(variables.USER_PROHIBITED_ROLE_SETTING):
+				setProhibitedRoleInNeo(arguments.settingValue);
+				return getUserManagerSetting(arguments.settingName);
+			case lCase(variables.USER_PROHIBITED_DATASOURCE_SETTING):
+				setProhibitedDataSourceInNeo(arguments.settingValue);
+				return getUserManagerSetting(arguments.settingName);
+			case lCase(variables.USER_FILE_READ_SETTING):
+				setUserFileActionInNeo("read", toBoolean(arguments.settingValue));
+				return getUserManagerSetting(arguments.settingName);
+			case lCase(variables.USER_FILE_WRITE_SETTING):
+				setUserFileActionInNeo("write", toBoolean(arguments.settingValue));
+				return getUserManagerSetting(arguments.settingName);
+			case lCase(variables.USER_FILE_EXECUTE_SETTING):
+				setUserFileActionInNeo("execute", toBoolean(arguments.settingValue));
+				return getUserManagerSetting(arguments.settingName);
+			case lCase(variables.USER_FILE_DELETE_SETTING):
+				setUserFileActionInNeo("delete", toBoolean(arguments.settingValue));
+				return getUserManagerSetting(arguments.settingName);
 			default:
 				throw(message="Unsupported user manager setting: #arguments.settingName#", type="CCSTest.ConfigError");
 		}
@@ -302,6 +437,17 @@ component output="false" {
 		switch(lCase(trim(arguments.settingName))){
 			case lCase(variables.USER_DESCRIPTION_SETTING):
 				return len(trim("" & arguments.currentValue)) ? "" : variables.TEST_DESCRIPTION;
+			case lCase(variables.USER_PASSWORD_SETTING):
+			case lCase(variables.USER_PASSWORD_CONFIRM_SETTING):
+				return variables.TEST_PASS;
+			case lCase(variables.USER_ROLE_SETTING):
+				return toggleItemInList(arguments.currentValue, variables.TEST_ROLE);
+			case lCase(variables.USER_PROHIBITED_ROLE_SETTING):
+				return toggleItemInList(arguments.currentValue, variables.TEST_ROLE);
+			case lCase(variables.ENABLED_DATA_SOURCE_SETTING):
+				return toggleItemInList(arguments.currentValue, variables.TEST_DATASOURCE);
+			case lCase(variables.USER_PROHIBITED_DATASOURCE_SETTING):
+				return toggleItemInList(arguments.currentValue, variables.TEST_DATASOURCE);
 			default:
 				return formatBooleanSettingValue(arguments.currentValue) EQ "true" ? "false" : "true";
 		}
@@ -313,6 +459,17 @@ component output="false" {
 		switch(lCase(trim(arguments.settingName))){
 			case lCase(variables.USER_DESCRIPTION_SETTING):
 				return lCase(trim("" & arguments.expectedValue)) EQ lCase(trim("" & arguments.actualValue));
+			case lCase(variables.USER_PASSWORD_SETTING):
+			case lCase(variables.USER_PASSWORD_CONFIRM_SETTING):
+				return trim("" & arguments.expectedValue) EQ trim("" & arguments.actualValue);
+			case lCase(variables.USER_ROLE_SETTING):
+				return multiSelectValuesMatch(arguments.expectedValue, arguments.actualValue, variables.TEST_ROLE);
+			case lCase(variables.USER_PROHIBITED_ROLE_SETTING):
+				return multiSelectValuesMatch(arguments.expectedValue, arguments.actualValue, variables.TEST_ROLE);
+			case lCase(variables.ENABLED_DATA_SOURCE_SETTING):
+				return multiSelectValuesMatch(arguments.expectedValue, arguments.actualValue, variables.TEST_DATASOURCE);
+			case lCase(variables.USER_PROHIBITED_DATASOURCE_SETTING):
+				return multiSelectValuesMatch(arguments.expectedValue, arguments.actualValue, variables.TEST_DATASOURCE);
 			default:
 				return formatBooleanSettingValue(arguments.expectedValue) EQ formatBooleanSettingValue(arguments.actualValue);
 		}
@@ -330,13 +487,21 @@ component output="false" {
 			case lCase(variables.ALLOW_ADMIN_ACCESS_SETTING):
 				return formatBooleanSettingValue(arguments.value) EQ "true" ? "Allowed" : "Not allowed";
 			case lCase(variables.ENABLED_DATA_SOURCE_SETTING):
-				return formatBooleanSettingValue(arguments.value) EQ "true" ? "Allowed (#variables.TEST_DATASOURCE#)" : "Not allowed";
 			case lCase(variables.USER_ROLE_SETTING):
-				return formatBooleanSettingValue(arguments.value) EQ "true" ? "Allowed (#variables.TEST_ROLE#)" : "Not allowed";
+			case lCase(variables.USER_PROHIBITED_ROLE_SETTING):
+			case lCase(variables.USER_PROHIBITED_DATASOURCE_SETTING):
+				var list = parseItemsList(arguments.value);
+				return arrayLen(list) ? arrayToList(list, ", ") : "(none)";
 			case lCase(variables.SECURED_FILE_PATH_SETTING):
 				return formatBooleanSettingValue(arguments.value) EQ "true" ? getTestSecuredFilePath() : "(none)";
 			case lCase(variables.IS_GROUP_SETTING):
 				return formatBooleanSettingValue(arguments.value) EQ "true" ? "Group" : "Individual user";
+			case lCase(variables.USER_PASSWORD_SETTING):
+			case lCase(variables.USER_PASSWORD_CONFIRM_SETTING):
+				var text = trim("" & arguments.value);
+				if(NOT len(text) OR text EQ "password")
+					return "(empty)";
+				return text;
 			default:
 				return formatBooleanSettingValue(arguments.value);
 		}
@@ -396,7 +561,7 @@ component output="false" {
 				sandboxes = [],
 				isLdap = false,
 				isGroup = false,
-				isSaml = false
+				isSaml = javaCast("boolean", false)
 			};
 		}
 		// duplicate() on this entry doesn't produce a plain CFML struct -- confirmed live that
@@ -446,7 +611,26 @@ component output="false" {
 			return {};
 		if(NOT structKeyExists(cfg.AuthorizedUsers, variables.TEST_USER))
 			return {};
-		return cfg.AuthorizedUsers[variables.TEST_USER];
+		var rawUser = cfg.AuthorizedUsers[variables.TEST_USER];
+		var cleanUser = {};
+		if(isStruct(rawUser)){
+			for(var k in rawUser){
+				cleanUser[k] = rawUser[k];
+			}
+		}
+		return cleanUser;
+	}
+
+	private any function getNeoUserField(required struct user, required string fieldName, any defaultValue = ""){
+		if(structIsEmpty(arguments.user))
+			return arguments.defaultValue;
+		if(structKeyExists(arguments.user, arguments.fieldName))
+			return arguments.user[arguments.fieldName];
+		for(var k in arguments.user){
+			if(compareNoCase(k, arguments.fieldName) EQ 0)
+				return arguments.user[k];
+		}
+		return arguments.defaultValue;
 	}
 
 	private void function ensureAuthorizedUsersStruct(required struct configMap){
@@ -549,17 +733,7 @@ component output="false" {
 	}
 
 	private any function loginAdmin(){
-		ensureConstants();
-		var constants = getConstants();
-		var admin = createObject("component", "CFIDE.adminapi.administrator");
-		var userId = structKeyExists(constants.CF_CONFIG, "CF_ADMIN_USERID")
-			? trim("" & constants.CF_CONFIG.CF_ADMIN_USERID) : "";
-		var loggedIn = len(userId)
-			? admin.login(adminPassword=constants.CF_CONFIG.CF_ADMIN_PASSWORD, adminUserId=userId)
-			: admin.login(constants.CF_CONFIG.CF_ADMIN_PASSWORD);
-		if(NOT loggedIn)
-			throw(message="Admin API login failed", type="CCSTest.AdminLoginFailed");
-		return admin;
+		return getSecUtil().loginAdminPublic();
 	}
 
 	private void function logoutAdmin(required any admin){
@@ -572,4 +746,221 @@ component output="false" {
 		return createObject("component", "CFIDE.adminapi.security");
 	}
 
+
+	private void function ensureTestSecuredPathReady(){
+		if(NOT isSecuredFilePathPresentInNeo())
+			setSecuredFilePathInNeo(true);
+	}
+
+	private boolean function isUserFileActionPresentInNeo(required string actionName){
+		var user = readAuthorizedUserFromNeo();
+		if(structIsEmpty(user))
+			return false;
+		var sandboxes = getNeoUserSandboxes(user);
+		for(var entry in sandboxes){
+			if(isStruct(entry) AND structKeyExists(entry, "TARGET")
+					AND findNoCase(variables.TEST_FILE_DIR, normalizePath("" & entry.TARGET))){
+				var actions = structKeyExists(entry, "ACTION") ? entry.ACTION : "";
+				return listFindNoCase(actions, arguments.actionName) GT 0;
+			}
+		}
+		return false;
+	}
+
+	private void function setUserFileActionInNeo(required string actionName, required boolean present){
+		ensureTestSecuredPathReady();
+		var cfg = loadSecurityConfigMap();
+		ensureAuthorizedUsersStruct(cfg);
+		if(NOT structKeyExists(cfg.AuthorizedUsers, variables.TEST_USER))
+			return;
+		var user = {};
+		for(var fieldKey in cfg.AuthorizedUsers[variables.TEST_USER])
+			user[fieldKey] = cfg.AuthorizedUsers[variables.TEST_USER][fieldKey];
+		var sandboxes = getNeoUserSandboxes(user);
+		for(var i = 1; i LTE arrayLen(sandboxes); i++){
+			var entry = sandboxes[i];
+			if(isStruct(entry) AND structKeyExists(entry, "TARGET")
+					AND findNoCase(variables.TEST_FILE_DIR, normalizePath("" & entry.TARGET))){
+				var actions = structKeyExists(entry, "ACTION") ? entry.ACTION : "";
+				var actList = listToArray(actions);
+				var idx = arrayFindNoCase(actList, arguments.actionName);
+				if(arguments.present AND idx EQ 0){
+					arrayAppend(actList, arguments.actionName);
+				} else if(NOT arguments.present AND idx GT 0){
+					arrayDeleteAt(actList, idx);
+				}
+				entry.ACTION = arrayToList(actList);
+				sandboxes[i] = entry;
+				break;
+			}
+		}
+		writeNeoUserSandboxes(user, sandboxes);
+		cfg.AuthorizedUsers[variables.TEST_USER] = user;
+		saveSecurityConfigMap(cfg);
+	}
+
+	private boolean function isProhibitedRolePresentInNeo(){
+		var user = readAuthorizedUserFromNeo();
+		if(structIsEmpty(user)) return false;
+		var dRoles = getNeoUserField(user, "disabledroles", []);
+		if(NOT isArray(dRoles)) return false;
+		return arrayFindNoCase(dRoles, variables.TEST_ROLE) GT 0;
+	}
+
+	private void function setProhibitedRoleInNeo(required any settingValue){
+		var cfg = loadSecurityConfigMap();
+		ensureAuthorizedUsersStruct(cfg);
+		if(NOT structKeyExists(cfg.AuthorizedUsers, variables.TEST_USER))
+			return;
+		var user = {};
+		for(var fieldKey in cfg.AuthorizedUsers[variables.TEST_USER])
+			user[fieldKey] = cfg.AuthorizedUsers[variables.TEST_USER][fieldKey];
+		user["disabledroles"] = parseSettingValueToArray(arguments.settingValue, variables.TEST_ROLE);
+		cfg.AuthorizedUsers[variables.TEST_USER] = user;
+		saveSecurityConfigMap(cfg);
+	}
+
+	private void function setProhibitedDataSourceInNeo(required any settingValue){
+		var cfg = loadSecurityConfigMap();
+		ensureAuthorizedUsersStruct(cfg);
+		if(NOT structKeyExists(cfg.AuthorizedUsers, variables.TEST_USER))
+			return;
+		var user = {};
+		for(var fieldKey in cfg.AuthorizedUsers[variables.TEST_USER])
+			user[fieldKey] = cfg.AuthorizedUsers[variables.TEST_USER][fieldKey];
+		user["disabledds"] = parseSettingValueToArray(arguments.settingValue, variables.TEST_DATASOURCE);
+		cfg.AuthorizedUsers[variables.TEST_USER] = user;
+		saveSecurityConfigMap(cfg);
+	}
+
+	private boolean function isLdapUserInNeo(){
+		var user = readAuthorizedUserFromNeo();
+		if(structIsEmpty(user)) return false;
+		return toBoolean(getNeoUserField(user, "isLdap", false));
+	}
+
+	private void function setLdapUserInNeo(required boolean present){
+		var cfg = loadSecurityConfigMap();
+		ensureAuthorizedUsersStruct(cfg);
+		if(NOT structKeyExists(cfg.AuthorizedUsers, variables.TEST_USER)) return;
+		var user = {};
+		for(var fieldKey in cfg.AuthorizedUsers[variables.TEST_USER])
+			user[fieldKey] = cfg.AuthorizedUsers[variables.TEST_USER][fieldKey];
+		user["isLdap"] = arguments.present;
+		cfg.AuthorizedUsers[variables.TEST_USER] = user;
+		saveSecurityConfigMap(cfg);
+	}
+
+	private boolean function isSamlUserInNeo(){
+		var user = readAuthorizedUserFromNeo();
+		if(structIsEmpty(user)) return false;
+		return toBoolean(getNeoUserField(user, "isSaml", false));
+	}
+
+	private void function setSamlUserInNeo(required boolean present){
+		var cfg = loadSecurityConfigMap();
+		ensureAuthorizedUsersStruct(cfg);
+		if(NOT structKeyExists(cfg.AuthorizedUsers, variables.TEST_USER)) return;
+		var user = {};
+		for(var fieldKey in cfg.AuthorizedUsers[variables.TEST_USER])
+			user[fieldKey] = cfg.AuthorizedUsers[variables.TEST_USER][fieldKey];
+		user["isSaml"] = javaCast("boolean", arguments.present);
+		cfg.AuthorizedUsers[variables.TEST_USER] = user;
+		saveSecurityConfigMap(cfg);
+	}
+
+	private boolean function isExternalUserInNeo(){
+		return isLdapUserInNeo() OR isSamlUserInNeo();
+	}
+
+	private void function setExternalUserInNeo(required boolean present){
+		setLdapUserInNeo(arguments.present);
+	}
+
+	private boolean function isApiAccessOnlyInNeo(){
+		var user = readAuthorizedUserFromNeo();
+		if(structIsEmpty(user)) return false;
+		return toBoolean(getNeoUserField(user, "allowadminapiaccess", false));
+	}
+
+	private void function setApiAccessOnlyInNeo(required boolean present){
+		var cfg = loadSecurityConfigMap();
+		ensureAuthorizedUsersStruct(cfg);
+		if(NOT structKeyExists(cfg.AuthorizedUsers, variables.TEST_USER)) return;
+		var user = {};
+		for(var fieldKey in cfg.AuthorizedUsers[variables.TEST_USER])
+			user[fieldKey] = cfg.AuthorizedUsers[variables.TEST_USER][fieldKey];
+		user["allowadminaccess"] = true;
+		user["allowadminapiaccess"] = arguments.present;
+		cfg.AuthorizedUsers[variables.TEST_USER] = user;
+		saveSecurityConfigMap(cfg);
+	}
+
+	private boolean function isAdminConsoleAndApiInNeo(){
+		var user = readAuthorizedUserFromNeo();
+		if(structIsEmpty(user)) return false;
+		var allowAdmin = toBoolean(getNeoUserField(user, "allowadminaccess", false));
+		var allowApi = toBoolean(getNeoUserField(user, "allowadminapiaccess", false));
+		return allowAdmin AND NOT allowApi;
+	}
+
+	private void function setAdminConsoleAndApiInNeo(required boolean present){
+		setApiAccessOnlyInNeo(NOT arguments.present);
+	}
+
+
+	private array function parseItemsList(required any value){
+		if(isArray(arguments.value))
+			return arguments.value;
+		var raw = trim("" & arguments.value);
+		if(NOT len(raw) OR raw EQ "(none)" OR raw EQ "(empty)")
+			return [];
+		var result = [];
+		for(var item in listToArray(raw)){
+			var t = trim(item);
+			if(len(t) AND arrayFindNoCase(result, t) EQ 0)
+				arrayAppend(result, t);
+		}
+		return result;
+	}
+
+	private array function parseSettingValueToArray(required any value, required string testItem){
+		var text = trim("" & arguments.value);
+		if(listFindNoCase("true,yes,1", text) GT 0)
+			return [arguments.testItem];
+		if(listFindNoCase("false,no,0", text) GT 0 OR NOT len(text) OR text EQ "(none)" OR text EQ "(empty)")
+			return [];
+		return parseItemsList(text);
+	}
+
+	private string function toggleItemInList(required any currentValue, required string targetItem){
+		var list = parseItemsList(arguments.currentValue);
+		if(arrayFindNoCase(list, arguments.targetItem) GT 0){
+			var filtered = [];
+			for(var item in list){
+				if(compareNoCase(trim(item), arguments.targetItem) NEQ 0)
+					arrayAppend(filtered, trim(item));
+			}
+			return arrayToList(filtered);
+		}
+		else {
+			arrayAppend(list, arguments.targetItem);
+			return arrayToList(list);
+		}
+	}
+
+	private boolean function multiSelectValuesMatch(required any expectedValue, required any actualValue, required string targetItem){
+		var expText = trim("" & arguments.expectedValue);
+		var shouldHaveTarget = false;
+		if(listFindNoCase("true,yes,1", expText) GT 0)
+			shouldHaveTarget = true;
+		else if(listFindNoCase("false,no,0,(empty),(none)", expText) GT 0 OR NOT len(expText))
+			shouldHaveTarget = false;
+		else
+			shouldHaveTarget = (arrayFindNoCase(parseItemsList(expText), arguments.targetItem) GT 0);
+
+		var actualList = parseItemsList(arguments.actualValue);
+		var hasTarget = (arrayFindNoCase(actualList, arguments.targetItem) GT 0);
+		return shouldHaveTarget EQ hasTarget;
+	}
 }

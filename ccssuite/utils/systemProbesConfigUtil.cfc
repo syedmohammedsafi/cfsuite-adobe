@@ -48,6 +48,7 @@ component output="false" {
 			probes = {}
 		};
 
+		var loadedFromXml = false;
 		if(fileExists(xmlPath)){
 			try {
 				var xmlContent = fileRead(xmlPath, "UTF-8");
@@ -60,6 +61,7 @@ component output="false" {
 						}
 						if(structKeyExists(parsed, "probes") AND isStruct(parsed.probes)){
 							data.probes = parsed.probes;
+							loadedFromXml = true;
 						}
 					}
 				}
@@ -67,7 +69,7 @@ component output="false" {
 			catch(any e){}
 		}
 
-		if(isDefined("server.coldfusion.probes") AND isStruct(server.coldfusion.probes)){
+		if(NOT loadedFromXml AND isDefined("server.coldfusion.probes") AND isStruct(server.coldfusion.probes)){
 			if(structKeyExists(server.coldfusion.probes, "config") AND isStruct(server.coldfusion.probes.config)){
 				structAppend(data.config, server.coldfusion.probes.config, true);
 			}
@@ -231,37 +233,87 @@ component output="false" {
 
 	public string function getProbeProperty(required string probeName, required string propName, string defaultVal = ""){
 		var data = readProbeData();
-		if(structKeyExists(data.probes, arguments.probeName)){
-			var p = data.probes[arguments.probeName];
+		var targetProbe = arguments.probeName;
+		if(NOT structKeyExists(data.probes, targetProbe)){
+			if(targetProbe EQ "CCSTestProbe" AND structKeyExists(data.probes, "CCSTestProbeAlt"))
+				targetProbe = "CCSTestProbeAlt";
+			else if(targetProbe EQ "CCSTestProbeAlt" AND structKeyExists(data.probes, "CCSTestProbe"))
+				targetProbe = "CCSTestProbe";
+		}
+		if(structKeyExists(data.probes, targetProbe)){
+			var p = data.probes[targetProbe];
 			if(structKeyExists(p, arguments.propName)){
 				return trim("" & p[arguments.propName]);
 			}
+			return arguments.defaultVal;
 		}
 		return arguments.defaultVal;
 	}
 
 	public string function setProbeProperty(required string probeName, required string propName, required any val){
 		var valToSet = trim("" & arguments.val);
+		var targetProbe = arguments.probeName;
+		var data = readProbeData();
+		if(NOT structKeyExists(data.probes, targetProbe)){
+			if(targetProbe EQ "CCSTestProbe" AND structKeyExists(data.probes, "CCSTestProbeAlt"))
+				targetProbe = "CCSTestProbeAlt";
+			else if(targetProbe EQ "CCSTestProbeAlt" AND structKeyExists(data.probes, "CCSTestProbe"))
+				targetProbe = "CCSTestProbe";
+		}
 		var custom = {};
 		custom[arguments.propName] = valToSet;
-		addOrUpdateProbe(arguments.probeName, custom);
-		return getProbeProperty(arguments.probeName, arguments.propName);
+		addOrUpdateProbe(targetProbe, custom);
+		return getProbeProperty(targetProbe, arguments.propName);
 	}
 
 	// Specific helpers
-	public string function getProbeTaskName(required string probeName){
+	public string function getProbeTaskName(string probeName = "CCSTestProbe"){
 		var data = readProbeData();
-		return structKeyExists(data.probes, arguments.probeName) ? arguments.probeName : "";
+		for(var k in data.probes){
+			if(k EQ arguments.probeName OR k EQ "CCSTestProbe" OR k EQ "CCSTestProbeAlt" OR left(lCase(k), 12) EQ "ccstestprobe"){
+				if(structKeyExists(data.probes[k], "taskname") AND len(trim(data.probes[k].taskname)))
+					return trim(data.probes[k].taskname);
+				return k;
+			}
+		}
+		if(structKeyExists(data.probes, arguments.probeName))
+			return arguments.probeName;
+		return "";
 	}
 	public string function setProbeTaskName(required string probeName, required any val){
 		var valToSet = trim("" & arguments.val);
+		var data = readProbeData();
+		var currentKey = "";
+		for(var k in data.probes){
+			if(k EQ arguments.probeName OR k EQ "CCSTestProbe" OR k EQ "CCSTestProbeAlt" OR left(lCase(k), 12) EQ "ccstestprobe"){
+				currentKey = k;
+				break;
+			}
+		}
+
 		if(NOT len(valToSet)){
-			deleteProbeIfExists(arguments.probeName);
+			if(len(currentKey))
+				structDelete(data.probes, currentKey);
+			structDelete(data.probes, "CCSTestProbe");
+			structDelete(data.probes, "CCSTestProbeAlt");
+			writeProbeData(data);
+			return "";
+		}
+
+		var probeStruct = {};
+		if(len(currentKey) AND structKeyExists(data.probes, currentKey)){
+			probeStruct = duplicate(data.probes[currentKey]);
+			structDelete(data.probes, currentKey);
 		}
 		else {
-			addOrUpdateProbe(arguments.probeName);
+			probeStruct = buildTestProbe(valToSet);
 		}
-		return getProbeTaskName(arguments.probeName);
+		structDelete(data.probes, "CCSTestProbe");
+		structDelete(data.probes, "CCSTestProbeAlt");
+		probeStruct.taskname = valToSet;
+		data.probes[valToSet] = probeStruct;
+		writeProbeData(data);
+		return valToSet;
 	}
 
 	// ----------------------------------------------------
@@ -327,7 +379,7 @@ component output="false" {
 
 			case "password":
 			case "ccstestprobepasswordfield":
-				return getProbeProperty("CCSTestProbe", "password", "password");
+				return getProbeProperty("CCSTestProbe", "password", "");
 
 			case "request_time_out":
 			case "ccstestproberequesttimeout":

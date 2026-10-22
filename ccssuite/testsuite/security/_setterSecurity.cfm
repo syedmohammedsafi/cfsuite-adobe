@@ -24,7 +24,9 @@
 			OR (lCase(apiArea) EQ "spconfiguration"
 			AND listFindNoCase("SpSloUrl,SpSloBinding,SpSignKeystorePath,SpSignKeystorePassword,SpSignKeystoreAlias,SpRequestStore", settingName))
 			OR (lCase(apiArea) EQ "settings"
-			AND listFindNoCase("PasskeyDefaultDatasource,ClientCertSubjectHeader", settingName));
+			AND listFindNoCase("PasskeyDefaultDatasource,ClientCertSubjectHeader", settingName))
+			OR (lCase(apiArea) EQ "usermanager"
+			AND listFindNoCase("UserPassword,UserPasswordConfirm,UserDescription", settingName));
 		if(NOT len(trim(setValue)) AND NOT allowEmptySetValue){
 			cfheader(statusCode=400);
 			cfcontent(type="text/plain", reset=true);

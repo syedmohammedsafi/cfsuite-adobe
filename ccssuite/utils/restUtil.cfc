@@ -19,6 +19,15 @@ component output="true" displayname=""  {
 		return this;
 	}
 
+	private boolean function doAdminLogin(){
+		var pwd = structKeyExists(application.constants.CF_CONFIG, "CF_ADMIN_PASSWORD") ? application.constants.CF_CONFIG["CF_ADMIN_PASSWORD"] : "password";
+		var uid = structKeyExists(application.constants.CF_CONFIG, "CF_ADMIN_USERID") ? application.constants.CF_CONFIG["CF_ADMIN_USERID"] : "admin";
+		var ok = len(uid) ? admin.login(adminPassword=pwd, adminUserId=uid) : admin.login(pwd);
+		if(!ok && len(uid))
+			ok = admin.login(pwd);
+		return ok;
+	}
+
 	public boolean function registerRestService(required string path, 
 													required string serviceMapping, 
 													string host="localhost",
@@ -29,7 +38,7 @@ component output="true" displayname=""  {
 			if(restMappingExists(serviceMapping))
 				return false
 
-			admin.login(application.constants.CF_CONFIG["CF_ADMIN_PASSWORD"])
+			doAdminLogin();
 			restSrvExt.registerRESTService(path, serviceMapping, host, isDefault)
 			return true
 		}
@@ -46,7 +55,7 @@ component output="true" displayname=""  {
 	public boolean function restMappingExists(required string mapping){
 
 		try{
-			admin.login(application.constants.CF_CONFIG["CF_ADMIN_PASSWORD"])
+			doAdminLogin();
 			mapList = restSrvExt.getRESTServices()
 			return mapListContains(mapList, mapping)
 

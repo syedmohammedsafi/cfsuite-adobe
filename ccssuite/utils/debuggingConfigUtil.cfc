@@ -680,10 +680,10 @@ component output="false" {
 			return normalizeLogDirectoryPath(arguments.actualValue) EQ normalizeLogDirectoryPath(arguments.requestedValue);
 		if(key EQ "line_debugger_enabled")
 			return formatBooleanText(arguments.actualValue) EQ formatBooleanText(arguments.requestedValue);
+		if(isNumeric(arguments.actualValue) AND isNumeric(arguments.requestedValue) AND len(trim("" & arguments.actualValue)) AND len(trim("" & arguments.requestedValue)))
+			return val(arguments.actualValue) EQ val(arguments.requestedValue);
 		if(isBoolean(arguments.actualValue) OR listFindNoCase("true,false,yes,no", lCase(trim("" & arguments.actualValue))))
 			return formatBooleanText(arguments.actualValue) EQ formatBooleanText(arguments.requestedValue);
-		if(isNumeric(arguments.actualValue) OR isNumeric(arguments.requestedValue))
-			return val(arguments.actualValue) EQ val(arguments.requestedValue);
 		return trim("" & arguments.actualValue) EQ trim("" & arguments.requestedValue);
 	}
 

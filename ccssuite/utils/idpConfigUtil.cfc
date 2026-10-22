@@ -19,6 +19,8 @@ component output="false" {
 	variables.TEST_IDP_FIELD_REFRESH_UPDATED = "2,0,0,0";
 	variables.SETTING_URL = "IdpFromSamlUrl";
 	variables.SETTING_DEF = "IdpFromSamlDefinition";
+	variables.SETTING_XML_METADATA = "IdpXmlMetadata";
+	variables.SETTING_METADATA_FILE_LOCATION = "IdpMetadataFileLocation";
 	variables.SETTING_XML = "IdpFromXmlFile";
 	variables.SETTING_OWN = "IdpOwnDefinition";
 	variables.SETTING_REMOVE_ALL = "IdpTestRemoveAll";
@@ -171,6 +173,21 @@ component output="false" {
 			"\wwwroot\cfsuite\ccssuite\testsuite\security\idpConfiguration\testIdpMetadataAlt.xml";
 	}
 
+	public string function getAlternateMetadataXml(){
+		var path = getAlternateMetadataXmlPath();
+		if(NOT fileExists(path))
+			throw(message="Missing alternate IDP test metadata XML at #path#", type="CCSTest.ConfigError");
+		return fileRead(path);
+	}
+
+	public string function getTestMetadataXmlAltPath(){
+		return getAlternateMetadataXmlPath();
+	}
+
+	public string function getTestMetadataXmlAlt(){
+		return getAlternateMetadataXml();
+	}
+
 	private string function getAlternateSigningCertificateFromXml(){
 		var path = getAlternateMetadataXmlPath();
 		if(NOT fileExists(path))
@@ -210,7 +227,9 @@ component output="false" {
 			variables.SETTING_NAME,
 			variables.SETTING_DESCRIPTION,
 			variables.SETTING_REFRESH,
-			variables.SETTING_SAML_URL
+			variables.SETTING_SAML_URL,
+			variables.SETTING_XML_METADATA,
+			variables.SETTING_METADATA_FILE_LOCATION
 		];
 	}
 
@@ -265,7 +284,7 @@ component output="false" {
 
 	public boolean function isIdpSetting(required string settingName){
 		return listFindNoCase(
-			variables.SETTING_URL & "," & variables.SETTING_DEF & "," & variables.SETTING_XML & "," &
+			variables.SETTING_URL & "," & variables.SETTING_DEF & "," & variables.SETTING_XML & "," & variables.SETTING_XML_METADATA & "," & variables.SETTING_METADATA_FILE_LOCATION & "," &
 			variables.SETTING_OWN & "," & variables.SETTING_REMOVE_ALL & "," & variables.SETTING_FIELD_SETUP & "," &
 			variables.SETTING_OWN_FIELD_SETUP & "," & arrayToList(getAllIdpFieldSettings()) & "," & variables.CCS_TEST_IDP_ALIAS,
 			trim(arguments.settingName)
@@ -279,7 +298,8 @@ component output="false" {
 				return isStruct(meta) AND structCount(meta) GT 0;
 			}
 			catch(any e){
-				return false;
+				// fallback to neo
+				return isTestIdpPresentInNeo(trim(arguments.alias));
 			}
 		}
 		return isTestIdpPresentInNeo(trim(arguments.alias));
@@ -636,8 +656,10 @@ component output="false" {
 				return;
 			}
 			catch(any e){
-				if(NOT findNoCase("not found", e.message))
-					rethrow;
+				// If deleteIdpMetadata fails (e.g. ClassCastException), proceed to remove from neo
+				removeIdpFromNeo(arguments.alias);
+				return;
+
 			}
 			finally {
 				logoutAdmin(admin);
@@ -702,10 +724,40 @@ component output="false" {
 		return variables.TEST_IDP_FIELD_ALIAS;
 	}
 
-	private any function getStructValueCaseInsensitive(required struct data, required string keyName){
-		for(var existingKey in arguments.data){
-			if(compareNoCase(existingKey, arguments.keyName) EQ 0)
-				return arguments.data[existingKey];
+	private struct function convertIdpEntryToStruct(required any rawEntry){
+		var out = {};
+		if(isStruct(arguments.rawEntry)){
+			for(var k in arguments.rawEntry){
+				out[k] = arguments.rawEntry[k];
+			}
+			return out;
+		}
+		if(isObject(arguments.rawEntry)){
+			try { out["description"] = arguments.rawEntry.getDescription(); } catch(any e){ try { out["description"] = arguments.rawEntry.description; } catch(any e2){} }
+			try { out["entityId"] = arguments.rawEntry.getEntityId(); } catch(any e){ try { out["entityId"] = arguments.rawEntry.entityId; } catch(any e2){} }
+			try { out["ssoUrl"] = arguments.rawEntry.getSsoUrl(); } catch(any e){ try { out["ssoUrl"] = arguments.rawEntry.ssoUrl; } catch(any e2){} }
+			try { out["ssoBinding"] = arguments.rawEntry.getSsoBinding(); } catch(any e){ try { out["ssoBinding"] = arguments.rawEntry.ssoBinding; } catch(any e2){} }
+			try { out["sloUrl"] = arguments.rawEntry.getSloUrl(); } catch(any e){ try { out["sloUrl"] = arguments.rawEntry.sloUrl; } catch(any e2){} }
+			try { out["sloBinding"] = arguments.rawEntry.getSloBinding(); } catch(any e){ try { out["sloBinding"] = arguments.rawEntry.sloBinding; } catch(any e2){} }
+			try { out["logoutResponseUrl"] = arguments.rawEntry.getLogoutResponseUrl(); } catch(any e){ try { out["logoutResponseUrl"] = arguments.rawEntry.logoutResponseUrl; } catch(any e2){} }
+			try { out["signRequests"] = arguments.rawEntry.isSignRequests(); } catch(any e){ try { out["signRequests"] = arguments.rawEntry.signRequests; } catch(any e2){} }
+			try { out["signCertificate"] = arguments.rawEntry.getSignCertificate(); } catch(any e){ try { out["signCertificate"] = arguments.rawEntry.signCertificate; } catch(any e2){} }
+			try { out["metadataRaw"] = arguments.rawEntry.getMetadataRaw(); } catch(any e){ try { out["metadataRaw"] = arguments.rawEntry.metadataRaw; } catch(any e2){} }
+			try { out["metadataUrl"] = arguments.rawEntry.getMetadataUrl(); } catch(any e){ try { out["metadataUrl"] = arguments.rawEntry.metadataUrl; } catch(any e2){} }
+			try { out["metadataFilePath"] = arguments.rawEntry.getMetadataFilePath(); } catch(any e){ try { out["metadataFilePath"] = arguments.rawEntry.metadataFilePath; } catch(any e2){} }
+			try { out["refreshInterval"] = arguments.rawEntry.getRefreshInterval(); } catch(any e){ try { out["refreshInterval"] = arguments.rawEntry.refreshInterval; } catch(any e2){} }
+		}
+		return out;
+	}
+
+	private any function getStructValueCaseInsensitive(required any data, required string keyName){
+		if(NOT isStruct(arguments.data) AND isObject(arguments.data))
+			arguments.data = convertIdpEntryToStruct(arguments.data);
+		if(isStruct(arguments.data)){
+			for(var existingKey in arguments.data){
+				if(compareNoCase(existingKey, arguments.keyName) EQ 0)
+					return arguments.data[existingKey];
+			}
 		}
 		return "";
 	}
@@ -714,9 +766,25 @@ component output="false" {
 		var idpMap = getIdentityProvidersMap(getNeoSamlMap());
 		for(var key in idpMap){
 			if(compareNoCase(key, arguments.alias) EQ 0)
-				return duplicate(idpMap[key]);
+				return convertIdpEntryToStruct(idpMap[key]);
+		}
+		if(isSecurityServiceAvailable()){
+			try {
+				var meta = getIdpMetadataInternal(arguments.alias);
+				if(isStruct(meta) AND structCount(meta) GT 0)
+					return normalizeIdpMetadata(meta);
+			}
+			catch(any e){}
 		}
 		return {};
+	}
+
+	private string function normalizeXmlString(required any value){
+		return reReplace(trim("" & arguments.value), "[\r\n\s]+", "", "all");
+	}
+
+	private string function normalizePathValue(required any value){
+		return lCase(replace(replace(trim("" & arguments.value), "/", "\\", "all"), "\\\\", "\\", "all"));
 	}
 
 	private numeric function refreshIntervalToNumber(required any value){
@@ -746,6 +814,10 @@ component output="false" {
 					return variables.TEST_IDP_FIELD_REFRESH;
 				case lCase(variables.SETTING_SAML_URL):
 					return variables.TEST_IDP_URL;
+				case lCase(variables.SETTING_XML_METADATA):
+					return getTestMetadataXml();
+				case lCase(variables.SETTING_METADATA_FILE_LOCATION):
+					return getTestMetadataXmlPath();
 				default:
 					throw(message="Unsupported IDP field setting: #arguments.settingName#", type="CCSTest.ConfigError");
 			}
@@ -765,6 +837,12 @@ component output="false" {
 				return len(trim("" & getStructValueCaseInsensitive(entry, "metadataUrl")))
 					? trim("" & getStructValueCaseInsensitive(entry, "metadataUrl"))
 					: variables.TEST_IDP_URL;
+			case lCase(variables.SETTING_XML_METADATA):
+				var raw = trim("" & getStructValueCaseInsensitive(entry, "metadataRaw"));
+				return len(raw) ? raw : getTestMetadataXml();
+			case lCase(variables.SETTING_METADATA_FILE_LOCATION):
+				var fLoc = trim("" & getStructValueCaseInsensitive(entry, "metadataFilePath"));
+				return len(fLoc) ? fLoc : getTestMetadataXmlPath();
 			default:
 				throw(message="Unsupported IDP field setting: #arguments.settingName#", type="CCSTest.ConfigError");
 		}
@@ -784,6 +862,8 @@ component output="false" {
 		var currentRefresh = len(trim("" & getStructValueCaseInsensitive(entry, "refreshInterval")))
 			? refreshIntervalToDisplay(getStructValueCaseInsensitive(entry, "refreshInterval"))
 			: variables.TEST_IDP_FIELD_REFRESH;
+		var currentXml = trim("" & getStructValueCaseInsensitive(entry, "metadataRaw"));
+		var currentFile = trim("" & getStructValueCaseInsensitive(entry, "metadataFilePath"));
 		switch(lCase(trim(arguments.settingName))){
 			case lCase(variables.SETTING_NAME):
 				modifyUrlIdpEntry(
@@ -791,17 +871,25 @@ component output="false" {
 					trim("" & arguments.settingValue),
 					currentDescription,
 					currentRefresh,
-					currentUrl
+					currentUrl,
+					currentXml,
+					currentFile
 				);
 				break;
 			case lCase(variables.SETTING_DESCRIPTION):
-				modifyUrlIdpEntry(alias, alias, trim("" & arguments.settingValue), currentRefresh, currentUrl);
+				modifyUrlIdpEntry(alias, alias, trim("" & arguments.settingValue), currentRefresh, currentUrl, currentXml, currentFile);
 				break;
 			case lCase(variables.SETTING_REFRESH):
-				modifyUrlIdpEntry(alias, alias, currentDescription, trim("" & arguments.settingValue), currentUrl);
+				modifyUrlIdpEntry(alias, alias, currentDescription, trim("" & arguments.settingValue), currentUrl, currentXml, currentFile);
 				break;
 			case lCase(variables.SETTING_SAML_URL):
-				modifyUrlIdpEntry(alias, alias, currentDescription, currentRefresh, trim("" & arguments.settingValue));
+				modifyUrlIdpEntry(alias, alias, currentDescription, currentRefresh, trim("" & arguments.settingValue), "", "");
+				break;
+			case lCase(variables.SETTING_XML_METADATA):
+				modifyUrlIdpEntry(alias, alias, currentDescription, currentRefresh, "", trim("" & arguments.settingValue), "");
+				break;
+			case lCase(variables.SETTING_METADATA_FILE_LOCATION):
+				modifyUrlIdpEntry(alias, alias, currentDescription, currentRefresh, "", "", trim("" & arguments.settingValue));
 				break;
 			default:
 				throw(message="Unsupported IDP field setting: #arguments.settingName#", type="CCSTest.ConfigError");
@@ -833,6 +921,18 @@ component output="false" {
 					arguments.currentValue,
 					variables.SETTING_SAML_URL
 				) ? variables.TEST_IDP_URL : variables.TEST_IDP_URL_ALT;
+			case lCase(variables.SETTING_XML_METADATA):
+				return idpFieldValuesMatch(
+					getTestMetadataXmlAlt(),
+					arguments.currentValue,
+					variables.SETTING_XML_METADATA
+				) ? getTestMetadataXml() : getTestMetadataXmlAlt();
+			case lCase(variables.SETTING_METADATA_FILE_LOCATION):
+				return idpFieldValuesMatch(
+					getTestMetadataXmlAltPath(),
+					arguments.currentValue,
+					variables.SETTING_METADATA_FILE_LOCATION
+				) ? getTestMetadataXmlPath() : getTestMetadataXmlAltPath();
 			default:
 				throw(message="Unsupported IDP field setting: #arguments.settingName#", type="CCSTest.ConfigError");
 		}
@@ -850,6 +950,10 @@ component output="false" {
 				return refreshIntervalToNumber(arguments.expectedValue) EQ refreshIntervalToNumber(arguments.actualValue);
 			case lCase(variables.SETTING_SAML_URL):
 				return normalizeSamlUrl(arguments.expectedValue) EQ normalizeSamlUrl(arguments.actualValue);
+			case lCase(variables.SETTING_XML_METADATA):
+				return normalizeXmlString(arguments.expectedValue) EQ normalizeXmlString(arguments.actualValue);
+			case lCase(variables.SETTING_METADATA_FILE_LOCATION):
+				return normalizePathValue(arguments.expectedValue) EQ normalizePathValue(arguments.actualValue);
 			case lCase(variables.SETTING_OWN_ENTITY_ID):
 				return lCase(trim("" & arguments.expectedValue)) EQ lCase(trim("" & arguments.actualValue));
 			case lCase(variables.SETTING_OWN_SSO_URL):
@@ -878,6 +982,12 @@ component output="false" {
 			case lCase(variables.SETTING_REFRESH):
 				return len(text) ? text : variables.TEST_IDP_FIELD_REFRESH;
 			case lCase(variables.SETTING_SAML_URL):
+				return len(text) ? text : "(empty)";
+			case lCase(variables.SETTING_XML_METADATA):
+				if(len(text) GT 40)
+					return left(text, 37) & "...";
+				return len(text) ? text : "(empty)";
+			case lCase(variables.SETTING_METADATA_FILE_LOCATION):
 				return len(text) ? text : "(empty)";
 			default:
 				return text;
@@ -917,30 +1027,49 @@ component output="false" {
 		required string newAlias,
 		required string description,
 		required string refreshInterval,
-		required string metadataUrl
+		required string metadataUrl,
+		string rawXml = "",
+		string metadataFile = ""
 	){
 		if(isSecurityServiceAvailable()){
 			var admin = loginAdmin();
 			try {
-				getSecurityAdminApi().modifyIdpMetadata(
+				var params = {
 					oldalias = arguments.oldAlias,
 					newalias = arguments.newAlias,
 					description = arguments.description,
-					url = arguments.metadataUrl,
 					refreshinterval = refreshIntervalToNumber(arguments.refreshInterval)
-				);
+				};
+				if(len(trim(arguments.rawXml))){
+					params.rawxml = trim(arguments.rawXml);
+				}
+				else if(len(trim(arguments.metadataFile))){
+					params.file = trim(arguments.metadataFile);
+				}
+				else if(len(trim(arguments.metadataUrl))){
+					params.url = trim(arguments.metadataUrl);
+				}
+				getSecurityAdminApi().modifyIdpMetadata(argumentCollection=params);
 				return;
+			}
+			catch(any e){
 			}
 			finally {
 				logoutAdmin(admin);
 			}
 		}
 		removeIdpFromNeo(arguments.oldAlias);
-		addIdpToNeo(arguments.newAlias, {
+		var opts = {
 			description = arguments.description,
-			url = arguments.metadataUrl,
 			refreshinterval = refreshIntervalToNumber(arguments.refreshInterval)
-		});
+		};
+		if(len(trim(arguments.rawXml)))
+			opts.rawxml = trim(arguments.rawXml);
+		else if(len(trim(arguments.metadataFile)))
+			opts.file = trim(arguments.metadataFile);
+		else
+			opts.url = arguments.metadataUrl;
+		addIdpToNeo(arguments.newAlias, opts);
 	}
 
 	public void function removeOwnFieldTestIdp(){

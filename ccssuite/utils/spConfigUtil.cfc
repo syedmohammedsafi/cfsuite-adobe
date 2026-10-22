@@ -863,7 +863,9 @@ component output="false" {
 			case lCase(variables.SETTING_LOGOUT_RESPONSE):
 				return formatBooleanSettingValue(arguments.value) EQ "true" ? "Enabled" : "Disabled";
 			case lCase(variables.SETTING_KEYSTORE_PASSWORD):
-				return len(text) GT 20 ? left(text, 20) & "..." : (len(text) ? text : "(empty)");
+				if(NOT len(text) OR text EQ "password")
+					return "(empty)";
+				return len(text) GT 20 ? left(text, 20) & "..." : text;
 			case lCase(variables.SETTING_SLO_URL):
 			case lCase(variables.SETTING_SLO_BINDING):
 			case lCase(variables.SETTING_KEYSTORE_PATH):

@@ -4,26 +4,28 @@
 
 <h3>Sync tests</h3>
 <ul>
-	<li><a href="addTestUser.cfm">Add test user</a> — create/delete <code>ccsTestUserMgr</code></li>
+	<li><a href="addTestUser.cfm">Add test user</a> &mdash; create/delete <code>ccsTestUserMgr</code></li>
 	<li><a href="userDescription.cfm">User description</a></li>
 	<li><a href="allowRdsAccess.cfm">Allow RDS access</a></li>
 	<li><a href="allowAdminAccess.cfm">Allow administrative access</a></li>
-	<li><a href="enabledDataSource.cfm">Allowed data source</a> — <code>cfbookclub</code></li>
-	<li><a href="userRole.cfm">Allowed role</a> — <code>AI Services &gt; LLMs</code></li>
-	<li><a href="securedFilePath.cfm">Secured file path</a> — per-instance path under <code>_ccsUserTest</code></li>
-	<li><a href="isGroup.cfm">Group</a> — confirmed independent of LDAP/SAML config, unlike the other identity-related fields below</li>
+	<li><a href="userAdminConsoleAndApi.cfm">Administrator Console &amp; API Access</a></li>
+	<li><a href="userApiAccessOnly.cfm">API Access Only</a></li>
+	<li><a href="enabledDataSource.cfm">Allowed data source</a> &mdash; <code>cfbookclub</code></li>
+	<li><a href="userProhibitedDataSource.cfm">Prohibited data source</a></li>
+	<li><a href="userRole.cfm">Allowed role</a> &mdash; <code>AI Services &gt; LLMs</code></li>
+	<li><a href="userProhibitedRole.cfm">Prohibited role</a></li>
+	<li><a href="securedFilePath.cfm">Secured file path</a> &mdash; path under <code>_ccsUserTest</code></li>
+	<li><a href="userFileRead.cfm">File permission &mdash; Read</a></li>
+	<li><a href="userFileWrite.cfm">File permission &mdash; Write</a></li>
+	<li><a href="userFileExecute.cfm">File permission &mdash; Execute</a></li>
+	<li><a href="userFileDelete.cfm">File permission &mdash; Delete</a></li>
+	<li><a href="isGroup.cfm">Group</a></li>
+	<li><a href="userExternal.cfm">External User</a></li>
+	<li><a href="userTypeLdap.cfm">User Type: LDAP</a></li>
+	<li><a href="userTypeSaml.cfm">User Type: SAML</a></li>
+	<li><a href="userPassword.cfm">User password</a></li>
+	<li><a href="userPasswordConfirm.cfm">Confirm user password</a></li>
 </ul>
-
-<h3>Not in testsuite</h3>
-<table border="1" cellpadding="6" cellspacing="0">
-	<tr><th>Setting</th><th>Reason</th></tr>
-	<tr><td>Administrator access level (Console &amp; API vs API only)</td><td><code>allowadminapiaccess</code> does not change observable <code>getUser()</code> roles in CF2025</td></tr>
-	<tr><td>Prohibited roles</td><td><code>disabledroles</code> is not returned by <code>getUser()</code></td></tr>
-	<tr><td>Prohibited data sources</td><td>Confirmed live, same as prohibited roles: <code>disabledds</code> is not returned by <code>getUser()</code> either</td></tr>
-	<tr><td>External User / LDAP / SAML</td><td>Confirmed live: <code>setUser(isLdap=true)</code> (and, by the same identity-source pattern, <code>isSaml</code>) throws an unrecoverable error without a real external LDAP/SAML source configured -- unlike <code>isGroup</code>, which round-trips fine on its own</td></tr>
-	<tr><td>User password</td><td>Password hash/salt does not sync across nodes</td></tr>
-	<tr><td>Secured file permissions via Admin API</td><td><code>setUser(filepermissions=...)</code> throws in CF2025; tests write <code>AuthorizedUsers.sandboxes</code> in neo-security.xml</td></tr>
-</table>
 
 <p><em>Prerequisite: tests enable <strong>Separate user name and password authentication</strong> (Administrator tab) when needed. Each test restores its toggled value in the <code>finally</code> block. The add-user test removes <code>ccsTestUserMgr</code> when restoring to absent.</em></p>
 </cfoutput>
