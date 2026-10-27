@@ -1,4 +1,4 @@
-/**
+﻿/**
 * Shared helpers for AIservices testsuite CFM pages.
 */
 component output="true" {
@@ -6,6 +6,7 @@ component output="true" {
 	variables.LLM_TEST_ALIAS = "CCSTestLLM";
 	variables.EMBEDDING_TEST_ALIAS = "CCSTestEmbedding";
 	variables.VECTORSTORE_TEST_ALIAS = "CCSTestVectorStore";
+	variables.RAG_TEST_ALIAS = "CCSTestRAG";
 	variables.FIELD_NAME_TIMEOUT = "timeout";
 
 	public function init(){
@@ -92,7 +93,7 @@ component output="true" {
 		if(NOT isEmptyAiSettingValue(prepared.originalValue, apiArea))
 			return prepared;
 
-		var defaultValue = encodeDefaultConfigForArea(apiArea);
+		var defaultValue = encodeDefaultConfigForArea(apiArea, arguments.alias);
 		arguments.testDriver.setAndGetSyncedValues(
 			duplicate(prepared.initedTestFrame),
 			defaultValue,
@@ -113,11 +114,22 @@ component output="true" {
 		};
 	}
 
-	private string function encodeDefaultConfigForArea(required string apiArea){
+	private string function encodeDefaultConfigForArea(required string apiArea, string alias = ""){
 		if(lCase(arguments.apiArea) EQ "embeddingmodels")
 			return encodeEmbeddingConfig(getDefaultEmbeddingConfig());
-		if(listFindNoCase("vectorstores,RAG", arguments.apiArea))
+		if(lCase(arguments.apiArea) EQ "rag")
+			return encodeRagConfig(getDefaultRagConfig());
+		if(lCase(arguments.apiArea) EQ "vectorstores"){
+			if(findNoCase("PineconePod", arguments.alias))
+				return encodeVectorStoreConfig(getDefaultPineconePodConfig());
+			if(findNoCase("Pinecone", arguments.alias))
+				return encodeVectorStoreConfig(getDefaultPineconeConfig());
+			if(findNoCase("Qdrant", arguments.alias))
+				return encodeVectorStoreConfig(getDefaultQdrantConfig());
+			if(findNoCase("Chroma", arguments.alias))
+				return encodeVectorStoreConfig(getDefaultChromaConfig());
 			return encodeVectorStoreConfig(getDefaultVectorStoreConfig());
+		}
 		return encodeLLMConfig(getDefaultLLMConfig());
 	}
 
@@ -510,10 +522,10 @@ component output="true" {
 		);
 
 		if(syncResult.passed){
-			// Re-check under the test's OWN requested scope, not a hardcoded "all" — see the
+			// Re-check under the test's OWN requested scope, not a hardcoded "all" â€” see the
 			// matching comment in serverSettingsTestUtil.runMultiNodeSettingSyncTest. ColdFusion
 			// Collections (the one caller here that requests nodesScope="currentPort") is backed by
-			// an external Solr server that, in this environment, all CF instances happen to share —
+			// an external Solr server that, in this environment, all CF instances happen to share â€”
 			// so re-querying peers under "all" scope made them look synced when nothing was ever
 			// pushed to them; they were just seeing the same shared resource.
 			stUtil.initializeCcsNodeConfig(arguments.nodesScope);
@@ -524,10 +536,10 @@ component output="true" {
 				arguments.skipUnreachableNodes
 			);
 			// Restore full cluster metadata for display now that afterFrame is already built under
-			// the requested (possibly narrower) scope — see the matching comment in
+			// the requested (possibly narrower) scope â€” see the matching comment in
 			// serverSettingsTestUtil.runMultiNodeSettingSyncTest. initializeCcsNodeConfig() also
 			// overwrites the ccsTestNodesScope flag itself, so restore the test's actual requested
-			// scope afterward — buildAllNodeAiVerificationRows reads that flag.
+			// scope afterward â€” buildAllNodeAiVerificationRows reads that flag.
 			stUtil.initializeCcsNodeConfig("all", true);
 			application.ccsTestNodesScope = arguments.nodesScope;
 			writeOutput("<br/><br/><b>After updating the setting all instances values are:</b><br><br>");
@@ -765,6 +777,49 @@ component output="true" {
 		);
 	}
 
+	public struct function getAllMiniLmEmbeddingConfig(){
+		return {
+			"provider": "ALL_MINILM",
+			"modelName": "all-MiniLM-L6-v2"
+		};
+	}
+
+	public struct function runAllMiniLmEmbeddingSyncTest(
+		required any testDriver,
+		required string alias,
+		required string scriptPath,
+		struct configOverrides = {},
+		boolean skipUnreachableNodes = true,
+		string nodesScope = "all"
+	){
+		var stUtil = new cfsuite.ccssuite.utils.serverSettingsTestUtil().init();
+		stUtil.initializeCcsNodeConfig(arguments.nodesScope);
+		var prepared = initAiSyncTestFrame(
+			arguments.testDriver,
+			arguments.alias,
+			arguments.scriptPath,
+			arguments.skipUnreachableNodes,
+			arguments.nodesScope
+		);
+		var initedTestFrame = prepared.initedTestFrame;
+		var config = getAllMiniLmEmbeddingConfig();
+		structAppend(config, arguments.configOverrides, true);
+		var newSetValue = encodeEmbeddingConfig(config);
+
+		return runMultiNodeLLMSyncTest(
+			arguments.testDriver,
+			arguments.alias,
+			arguments.scriptPath,
+			newSetValue,
+			initedTestFrame,
+			arguments.skipUnreachableNodes,
+			arguments.nodesScope,
+			false,
+			"",
+			prepared.originalValue
+		);
+	}
+
 	public void function restoreEmbeddingSyncTest(required any testDriver, required struct syncTestResult, required string alias){
 		restoreAiConfigSyncTest(arguments.testDriver, arguments.syncTestResult, arguments.alias);
 	}
@@ -800,6 +855,66 @@ component output="true" {
 				"maxBackoff": 1000,
 				"backOffMultiplier": 2
 			}
+		};
+	}
+
+	public struct function getDefaultPineconeConfig(){
+		return {
+			"provider": "PINECONE",
+			"apiKey": "test-pinecone-api-key",
+			"index": "test-pinecone-index",
+			"namespace": "default",
+			"topK": 5,
+			"minScore": 0.7,
+			"serverless": {
+				"dimension": 1536,
+				"cloud": "aws",
+				"region": "us-east-1",
+				"deletionProtection": "disabled"
+			}
+		};
+	}
+
+	public struct function getDefaultPineconePodConfig(){
+		return {
+			"provider": "PINECONE",
+			"apiKey": "test-pinecone-api-key",
+			"index": "test-pinecone-index",
+			"namespace": "default",
+			"topK": 5,
+			"minScore": 0.7,
+			"pod": {
+				"dimension": 1536,
+				"environment": "gcp-free",
+				"podType": "p1.x1"
+			}
+		};
+	}
+
+	public struct function getDefaultQdrantConfig(){
+		return {
+			"provider": "QDRANT",
+			"url": "http://127.0.0.1:6333",
+			"dimension": 1536,
+			"collectionName": "default",
+			"metricType": "COSINE",
+			"apiKey": "test-qdrant-api-key",
+			"topK": 5,
+			"minScore": 0.7
+		};
+	}
+
+	public struct function getDefaultChromaConfig(){
+		return {
+			"provider": "CHROMA",
+			"url": "http://127.0.0.1:8000",
+			"collectionName": "default",
+			"databaseName": "default",
+			"tenantName": "default",
+			"callTimeout": 60000,
+			"apiKey": "test-chroma-api-key",
+			"topK": 5,
+			"minScore": 0.7
 		};
 	}
 
@@ -876,12 +991,41 @@ component output="true" {
 				return 2000;
 			case "backoffmultiplier":
 				return 3;
+			// Pinecone
+			case "indexname":
+				return toggleStringMarker(structKeyExists(arguments.baseConfig, "index") ? arguments.baseConfig.index : "test-pinecone-index", "_ccs");
+			case "namespace":
+				return toggleStringMarker(structKeyExists(arguments.baseConfig, "namespace") ? arguments.baseConfig.namespace : "default", "_ccs");
+			case "serverconfigtype":
+				return "pod";
+			case "serverlessdimension":
+				return 3072;
+			case "cloudprovider":
+				return (structKeyExists(arguments.baseConfig, "serverless") AND structKeyExists(arguments.baseConfig.serverless, "cloud") AND lCase(trim(arguments.baseConfig.serverless.cloud)) EQ "aws") ? "gcp" : "aws";
+			case "serverlessregion":
+				return (structKeyExists(arguments.baseConfig, "serverless") AND structKeyExists(arguments.baseConfig.serverless, "region") AND lCase(trim(arguments.baseConfig.serverless.region)) EQ "us-east-1") ? "us-west-2" : "us-east-1";
+			case "deletionprotection":
+				return (structKeyExists(arguments.baseConfig, "serverless") AND structKeyExists(arguments.baseConfig.serverless, "deletionProtection") AND lCase(trim(arguments.baseConfig.serverless.deletionProtection)) EQ "disabled") ? "enabled" : "disabled";
+			case "poddimension":
+				return 3072;
+			case "podenvironment":
+				return toggleStringMarker(structKeyExists(arguments.baseConfig, "pod") AND structKeyExists(arguments.baseConfig.pod, "environment") ? arguments.baseConfig.pod.environment : "gcp-free", "_ccs");
+			case "podtype":
+				return (structKeyExists(arguments.baseConfig, "pod") AND structKeyExists(arguments.baseConfig.pod, "podType") AND lCase(trim(arguments.baseConfig.pod.podType)) EQ "p1.x1") ? "p2.x1" : "p1.x1";
+			// Qdrant
+			case "qdrantmetrictype":
+				return (structKeyExists(arguments.baseConfig, "metricType") AND uCase(trim("" & arguments.baseConfig.metricType)) EQ "COSINE") ? "Euclidean" : "COSINE";
+			// Chroma
+			case "tenantname":
+				return toggleStringMarker(structKeyExists(arguments.baseConfig, "tenantName") ? arguments.baseConfig.tenantName : "default", "_ccs");
 			default:
 				throw(message="Unsupported vector store field: #arguments.fieldName#", type="CCSTest.ConfigError");
 		}
 	}
 
 	private any function getVectorStoreConnectionField(required struct baseConfig, required string fieldName, any defaultValue = ""){
+		if(structKeyExists(arguments.baseConfig, arguments.fieldName))
+			return arguments.baseConfig[arguments.fieldName];
 		if(structKeyExists(arguments.baseConfig, "connectionSettings")
 			AND isStruct(arguments.baseConfig.connectionSettings)
 			AND structKeyExists(arguments.baseConfig.connectionSettings, arguments.fieldName))
@@ -926,6 +1070,50 @@ component output="true" {
 			case "initialbackoff": ensureRetrySettingsStruct(updated).initialBackoff = arguments.fieldValue; break;
 			case "maxbackoff": ensureRetrySettingsStruct(updated).maxBackoff = arguments.fieldValue; break;
 			case "backoffmultiplier": ensureRetrySettingsStruct(updated).backOffMultiplier = arguments.fieldValue; break;
+			// Pinecone
+			case "indexname": updated.index = arguments.fieldValue; break;
+			case "namespace": updated.namespace = arguments.fieldValue; break;
+			case "serverconfigtype":
+				if(arguments.fieldValue EQ "pod"){
+					structDelete(updated, "serverless");
+					updated.pod = { "dimension": 1536, "environment": "gcp-free", "podType": "p1.x1" };
+				} else {
+					structDelete(updated, "pod");
+					updated.serverless = { "dimension": 1536, "cloud": "aws", "region": "us-east-1", "deletionProtection": "disabled" };
+				}
+				break;
+			case "serverlessdimension":
+				if(NOT structKeyExists(updated, "serverless")) updated.serverless = {};
+				updated.serverless.dimension = arguments.fieldValue;
+				break;
+			case "cloudprovider":
+				if(NOT structKeyExists(updated, "serverless")) updated.serverless = {};
+				updated.serverless.cloud = arguments.fieldValue;
+				break;
+			case "serverlessregion":
+				if(NOT structKeyExists(updated, "serverless")) updated.serverless = {};
+				updated.serverless.region = arguments.fieldValue;
+				break;
+			case "deletionprotection":
+				if(NOT structKeyExists(updated, "serverless")) updated.serverless = {};
+				updated.serverless.deletionProtection = arguments.fieldValue;
+				break;
+			case "poddimension":
+				if(NOT structKeyExists(updated, "pod")) updated.pod = {};
+				updated.pod.dimension = arguments.fieldValue;
+				break;
+			case "podenvironment":
+				if(NOT structKeyExists(updated, "pod")) updated.pod = {};
+				updated.pod.environment = arguments.fieldValue;
+				break;
+			case "podtype":
+				if(NOT structKeyExists(updated, "pod")) updated.pod = {};
+				updated.pod.podType = arguments.fieldValue;
+				break;
+			// Qdrant
+			case "qdrantmetrictype": updated.metricType = arguments.fieldValue; break;
+			// Chroma
+			case "tenantname": updated.tenantName = arguments.fieldValue; break;
 			default:
 				throw(message="Unsupported vector store field: #arguments.fieldName#", type="CCSTest.ConfigError");
 		}
@@ -936,7 +1124,7 @@ component output="true" {
 	* coldfusion.server.VectorStoreService validates each provider against its own field
 	* schema (e.g. Milvus accepts databaseName/indexType/metricType; Qdrant and InMemory
 	* reject them as "Unknown Field"). The provider field test toggles the actual provider,
-	* so it must use only fields every provider we toggle between accepts — the full default
+	* so it must use only fields every provider we toggle between accepts â€” the full default
 	* config (which is Milvus-shaped) would get rejected the moment it's saved under qdrant.
 	*/
 	private string function getMinimalCrossProviderVectorStoreFieldList(){
@@ -954,11 +1142,26 @@ component output="true" {
 	}
 
 	public struct function buildVectorStoreConfigForField(required string fieldName, any currentValue = ""){
+		var key = lCase(trim(arguments.fieldName));
 		var baseConfig = getDefaultVectorStoreConfig();
+
+		if(listFindNoCase("indexname,namespace,serverconfigtype,serverlessdimension,cloudprovider,serverlessregion,deletionprotection", key) GT 0){
+			baseConfig = getDefaultPineconeConfig();
+		}
+		else if(listFindNoCase("poddimension,podenvironment,podtype", key) GT 0){
+			baseConfig = getDefaultPineconePodConfig();
+		}
+		else if(listFindNoCase("qdrantmetrictype", key) GT 0){
+			baseConfig = getDefaultQdrantConfig();
+		}
+		else if(listFindNoCase("tenantname", key) GT 0){
+			baseConfig = getDefaultChromaConfig();
+		}
+
 		var existing = decodeVectorStoreConfig(arguments.currentValue);
-		if(NOT structIsEmpty(existing))
+		if(NOT structIsEmpty(existing) AND structKeyExists(existing, "provider") AND structKeyExists(baseConfig, "provider") AND lCase(existing.provider) EQ lCase(baseConfig.provider))
 			structAppend(baseConfig, existing, true);
-		if(lCase(trim(arguments.fieldName)) EQ "provider")
+		if(key EQ "provider")
 			baseConfig = restrictToMinimalCrossProviderFields(baseConfig);
 		var testValue = getTestValueForVectorStoreField(arguments.fieldName, baseConfig);
 		return applyVectorStoreFieldValue(baseConfig, arguments.fieldName, testValue);
@@ -1019,11 +1222,17 @@ component output="true" {
 			arguments.nodesScope
 		);
 		var initedTestFrame = prepared.initedTestFrame;
-		var config = getDefaultVectorStoreConfig();
-		structAppend(config, arguments.configOverrides, true);
-		config.apiKey = "test-vectorstore-api-key-12345";
-		config.url = "http://127.0.0.1:19530";
-		config.collectionName = "ccs-test-collection";
+		var config = duplicate(arguments.configOverrides);
+		if(structIsEmpty(config)){
+			config = getDefaultVectorStoreConfig();
+			config.apiKey = "test-vectorstore-api-key-12345";
+			config.url = "http://127.0.0.1:19530";
+			config.collectionName = "ccs-test-collection";
+		} else if(structKeyExists(config, "provider") AND lCase(config.provider) EQ "milvus"){
+			config.apiKey = "test-vectorstore-api-key-12345";
+			config.url = "http://127.0.0.1:19530";
+			config.collectionName = "ccs-test-collection";
+		}
 		var newSetValue = encodeVectorStoreConfig(config);
 
 		return runMultiNodeLLMSyncTest(
@@ -1044,8 +1253,217 @@ component output="true" {
 		restoreAiConfigSyncTest(arguments.testDriver, arguments.syncTestResult, arguments.alias);
 	}
 
+	public struct function getDefaultRagConfig(){
+		return {
+			"vectorStoreAlias": "CCSTestVectorStore",
+			"embeddingModelOverride": "CCSTestEmbedding",
+			"sourceType": "Single File",
+			"filePath": "C:/ColdFusion2025/cfusion/wwwroot/cfsuite/testdoc.txt",
+			"directoryPath": "C:/ColdFusion2025/cfusion/wwwroot/cfsuite/",
+			"urlPath": "https://helpx.adobe.com/coldfusion/user-guide.html",
+			"parserType": "Auto",
+			"charset": "UTF-8",
+			"maxFileSize": 1048576,
+			"recursive": true,
+			"filePattern": "*.*",
+			"patternType": "Glob",
+			"parallel": false,
+			"maxThreads": 4,
+			"connectionTimeout": 30000,
+			"readTimeout": 60000,
+			"urlMaxRetries": 3,
+			"userAgent": "ColdFusion",
+			"splitterType": "Recursive",
+			"chunkSize": 1000,
+			"chunkOverlap": 200,
+			"regexPattern": "\n\n+",
+			"customSeparators": "\n\n,\n,., ",
+			"batchSize": 100,
+			"continueOnError": true
+		};
+	}
+
+	private struct function decodeRagConfig(required any settingValue){
+		var ragUtil = new cfsuite.ccssuite.utils.ragConfigUtil().init();
+		var raw = trim("" & arguments.settingValue);
+		if(NOT len(raw))
+			return {};
+		return ragUtil.decodeConfigValue(raw);
+	}
+
+	private string function encodeRagConfig(required struct config){
+		return new cfsuite.ccssuite.utils.ragConfigUtil().init().encodeConfigValue(arguments.config);
+	}
+
+	public any function getTestValueForRagField(required string fieldName, struct baseConfig = {}){
+		var key = lCase(trim(arguments.fieldName));
+		switch(key){
+			case "vectorstorealias":
+				return toggleStringMarker(structKeyExists(arguments.baseConfig, "vectorStoreAlias") ? arguments.baseConfig.vectorStoreAlias : "CCSTestVectorStore", "_ccs");
+			case "embeddingmodeloverride":
+				return toggleStringMarker(structKeyExists(arguments.baseConfig, "embeddingModelOverride") ? arguments.baseConfig.embeddingModelOverride : "CCSTestEmbedding", "_ccs");
+			case "sourcetype":
+			case "sourcetypesinglefile":
+			case "sourcetypedirectory":
+			case "sourcetypeurl":
+				return (structKeyExists(arguments.baseConfig, "sourceType") AND lCase(arguments.baseConfig.sourceType) EQ "directory") ? "URL" : "Directory";
+			case "filepath":
+				return toggleStringMarker(structKeyExists(arguments.baseConfig, "filePath") ? arguments.baseConfig.filePath : "C:/ColdFusion2025/cfusion/wwwroot/cfsuite/testdoc.txt", "_ccs.txt");
+			case "directorypath":
+				return toggleStringMarker(structKeyExists(arguments.baseConfig, "directoryPath") ? arguments.baseConfig.directoryPath : "C:/ColdFusion2025/cfusion/wwwroot/cfsuite/", "_ccs/");
+			case "urlpath":
+				return toggleStringMarker(structKeyExists(arguments.baseConfig, "urlPath") ? arguments.baseConfig.urlPath : "https://helpx.adobe.com/coldfusion/user-guide.html", "_ccs");
+			case "parsertype":
+				return (structKeyExists(arguments.baseConfig, "parserType") AND lCase(arguments.baseConfig.parserType) EQ "pdf") ? "Auto" : "PDF";
+			case "charset":
+				return (structKeyExists(arguments.baseConfig, "charset") AND lCase(arguments.baseConfig.charset) EQ "iso-8859-1") ? "UTF-8" : "ISO-8859-1";
+			case "maxfilesize":
+				return 2097152;
+			case "recursive":
+				return (structKeyExists(arguments.baseConfig, "recursive") AND isBoolean(arguments.baseConfig.recursive)) ? NOT arguments.baseConfig.recursive : false;
+			case "filepattern":
+				return "*.pdf";
+			case "patterntype":
+				return (structKeyExists(arguments.baseConfig, "patternType") AND lCase(arguments.baseConfig.patternType) EQ "regex") ? "Glob" : "Regex";
+			case "parallel":
+				return (structKeyExists(arguments.baseConfig, "parallel") AND isBoolean(arguments.baseConfig.parallel)) ? NOT arguments.baseConfig.parallel : true;
+			case "maxthreads":
+				return 8;
+			case "connectiontimeout":
+				return 45000;
+			case "readtimeout":
+				return 90000;
+			case "urlmaxretries":
+				return 5;
+			case "useragent":
+				return "ColdFusion-RAG-Client/1.0";
+			case "splittertype":
+				return (structKeyExists(arguments.baseConfig, "splitterType") AND lCase(arguments.baseConfig.splitterType) EQ "sentence") ? "Recursive" : "Sentence";
+			case "chunksize":
+				return 1500;
+			case "chunkoverlap":
+				return 300;
+			case "regexpattern":
+				return "\n{2,}";
+			case "customseparators":
+				return ";,\n,\t";
+			case "batchsize":
+				return 50;
+			case "continueonerror":
+				return (structKeyExists(arguments.baseConfig, "continueOnError") AND isBoolean(arguments.baseConfig.continueOnError)) ? NOT arguments.baseConfig.continueOnError : false;
+			default:
+				return "test_" & arguments.fieldName;
+		}
+	}
+
+	public struct function applyRagFieldValue(required struct config, required string fieldName, required any fieldValue){
+		var updated = duplicate(arguments.config);
+		var key = lCase(trim(arguments.fieldName));
+		switch(key){
+			case "vectorstorealias": updated.vectorStoreAlias = arguments.fieldValue; break;
+			case "embeddingmodeloverride": updated.embeddingModelOverride = arguments.fieldValue; break;
+			case "sourcetype": updated.sourceType = arguments.fieldValue; break;
+			case "sourcetypesinglefile": updated.sourceType = "Single File"; break;
+			case "sourcetypedirectory": updated.sourceType = "Directory"; break;
+			case "sourcetypeurl": updated.sourceType = "URL"; break;
+			case "filepath": updated.filePath = arguments.fieldValue; break;
+			case "directorypath": updated.directoryPath = arguments.fieldValue; break;
+			case "urlpath": updated.urlPath = arguments.fieldValue; break;
+			case "parsertype": updated.parserType = arguments.fieldValue; break;
+			case "charset": updated.charset = arguments.fieldValue; break;
+			case "maxfilesize": updated.maxFileSize = arguments.fieldValue; break;
+			case "recursive": updated.recursive = arguments.fieldValue; break;
+			case "filepattern": updated.filePattern = arguments.fieldValue; break;
+			case "patterntype": updated.patternType = arguments.fieldValue; break;
+			case "parallel": updated.parallel = arguments.fieldValue; break;
+			case "maxthreads": updated.maxThreads = arguments.fieldValue; break;
+			case "connectiontimeout": updated.connectionTimeout = arguments.fieldValue; break;
+			case "readtimeout": updated.readTimeout = arguments.fieldValue; break;
+			case "urlmaxretries": updated.urlMaxRetries = arguments.fieldValue; break;
+			case "useragent": updated.userAgent = arguments.fieldValue; break;
+			case "splittertype": updated.splitterType = arguments.fieldValue; break;
+			case "chunksize": updated.chunkSize = arguments.fieldValue; break;
+			case "chunkoverlap": updated.chunkOverlap = arguments.fieldValue; break;
+			case "regexpattern": updated.regexPattern = arguments.fieldValue; break;
+			case "customseparators": updated.customSeparators = arguments.fieldValue; break;
+			case "batchsize": updated.batchSize = arguments.fieldValue; break;
+			case "continueonerror": updated.continueOnError = arguments.fieldValue; break;
+			default:
+				updated[arguments.fieldName] = arguments.fieldValue;
+		}
+		return updated;
+	}
+
+	public struct function buildRagConfigForField(required string fieldName, any currentValue = ""){
+		var baseConfig = getDefaultRagConfig();
+		var existing = decodeRagConfig(arguments.currentValue);
+		if(NOT structIsEmpty(existing))
+			structAppend(baseConfig, existing, true);
+		var testValue = getTestValueForRagField(arguments.fieldName, baseConfig);
+		return applyRagFieldValue(baseConfig, arguments.fieldName, testValue);
+	}
+
+	public struct function runRagFieldSyncTest(
+		required any testDriver,
+		required string alias,
+		required string fieldName,
+		required string scriptPath,
+		boolean skipUnreachableNodes = true,
+		string nodesScope = "all"
+	){
+		var stUtil = new cfsuite.ccssuite.utils.serverSettingsTestUtil().init();
+		stUtil.initializeCcsNodeConfig(arguments.nodesScope);
+		var prepared = prepareAiFieldSyncTest(
+			arguments.testDriver,
+			arguments.alias,
+			arguments.scriptPath,
+			arguments.skipUnreachableNodes,
+			arguments.nodesScope
+		);
+		var initedTestFrame = prepared.initedTestFrame;
+		var originalValue = prepared.originalValue;
+		if(lCase(arguments.fieldName) EQ "sourcetypesinglefile"){
+			var baseCfg = getDefaultRagConfig();
+			baseCfg.sourceType = "Directory";
+			var seedVal = encodeRagConfig(baseCfg);
+			arguments.testDriver.setAndGetSyncedValues(
+				duplicate(initedTestFrame),
+				seedVal,
+				arguments.alias
+			);
+			stUtil.initializeCcsNodeConfig(arguments.nodesScope);
+			initedTestFrame = initTestFrame(
+				arguments.testDriver,
+				arguments.alias,
+				arguments.scriptPath,
+				arguments.skipUnreachableNodes
+			);
+			originalValue = seedVal;
+		}
+
+		var newConfig = buildRagConfigForField(arguments.fieldName, originalValue);
+		var newSetValue = encodeRagConfig(newConfig);
+
+		return runMultiNodeLLMSyncTest(
+			arguments.testDriver,
+			arguments.alias,
+			arguments.scriptPath,
+			newSetValue,
+			initedTestFrame,
+			arguments.skipUnreachableNodes,
+			arguments.nodesScope,
+			false,
+			arguments.fieldName,
+			""
+		);
+	}
+
+	public void function restoreRagSyncTest(required any testDriver, required struct syncTestResult, required string alias){
+		restoreAiConfigSyncTest(arguments.testDriver, arguments.syncTestResult, arguments.alias);
+	}
+
 	/**
-	* mcpServers has no per-item alias — the whole flat server-name-keyed map is one setting,
+	* mcpServers has no per-item alias â€” the whole flat server-name-keyed map is one setting,
 	* so this mirrors runFullVectorStoreSyncTest without the alias seed/delete machinery.
 	*/
 	public struct function getDefaultMcpServerConfig(){
@@ -1220,9 +1638,9 @@ component output="true" {
 		return formatConfigSummaryFromPayload(arguments.newSetValue, arguments.apiArea);
 	}
 
-	private string function formatAiExistingValueDisplay(required any existingValue, required string apiArea, string fieldName = ""){
+	private string function formatAiExistingValueDisplay(required any existingValue, required string apiArea, string fieldName = "", string alias = ""){
 		if(len(arguments.fieldName))
-			return formatExistingFieldDisplay(arguments.existingValue, arguments.fieldName, arguments.apiArea);
+			return formatExistingFieldDisplay(arguments.existingValue, arguments.fieldName, arguments.apiArea, arguments.alias);
 		return formatConfigSummaryFromPayload(arguments.existingValue, arguments.apiArea);
 	}
 
@@ -1292,7 +1710,7 @@ component output="true" {
 		return [{
 			nodeKey = currentNodeKey,
 			nodeLabel = stUtil.getURLFragFromNodeKey(currentNodeKey),
-			existingValue = formatAiExistingValueDisplay(existing, arguments.apiArea, arguments.fieldName),
+			existingValue = formatAiExistingValueDisplay(existing, arguments.apiArea, arguments.fieldName, arguments.settingName),
 			updatedValue = formatAiNewValueDisplay(arguments.newSetValue, arguments.apiArea, arguments.fieldName),
 			passed = passed,
 			cluster = metadata.cluster,
@@ -1339,14 +1757,16 @@ component output="true" {
 
 			var metadata = getAiNodeMetadataForKey(nodeKey);
 			// Distinguish "we captured this node's value before the test ran, and it happens to be
-			// blank" (hasCapturedValue — a real, known state) from "we never captured anything for
+			// blank" (hasCapturedValue â€” a real, known state) from "we never captured anything for
 			// this node at all" (truly unavailable). The old check (len(trim(existing))) conflated
 			// the two, showing "(unavailable)" even when the real pre-test value was legitimately
 			// empty (e.g. no collection existed there).
 			var hasCapturedValue = structKeyExists(arguments.existingValues, nodeKey);
 			var existing = hasCapturedValue ? arguments.existingValues[nodeKey] : "";
+			var aliasSetting = structKeyExists(arguments.afterFrame, application.testConstants.TEST_FRAME.CFSETTING)
+				? arguments.afterFrame[application.testConstants.TEST_FRAME.CFSETTING] : "";
 			var displayExisting = hasCapturedValue
-				? formatAiExistingValueDisplay(existing, arguments.apiArea, arguments.fieldName)
+				? formatAiExistingValueDisplay(existing, arguments.apiArea, arguments.fieldName, aliasSetting)
 				: "(unavailable)";
 			// Same reasoning as buildAllNodeSyncVerificationRows: a currentPort-scoped test (e.g.
 			// ColdFusion Collections) never intended to evaluate any other node, so an empty/
@@ -1388,6 +1808,9 @@ component output="true" {
 			application.testConstants.TEST_FRAME.NONPRIME_SET
 		];
 
+		var settingName = structKeyExists(arguments.postSyncFrame, application.testConstants.TEST_FRAME.CFSETTING)
+			? arguments.postSyncFrame[application.testConstants.TEST_FRAME.CFSETTING] : "";
+
 		for(var setType in setTypes){
 			if(NOT structKeyExists(arguments.postSyncFrame, setType))
 				continue;
@@ -1403,13 +1826,13 @@ component output="true" {
 					continue;
 
 				var preDisplay = len(arguments.fieldName)
-					? formatExistingFieldDisplay(prePayload, arguments.fieldName, arguments.apiArea)
+					? formatExistingFieldDisplay(prePayload, arguments.fieldName, arguments.apiArea, settingName)
 					: formatConfigSummaryFromPayload(prePayload, arguments.apiArea);
 				var postDisplay = len(arguments.fieldName)
-					? formatUpdatedFieldDisplay(postPayload, arguments.fieldName, arguments.apiArea)
+					? formatUpdatedFieldDisplay(postPayload, arguments.fieldName, arguments.apiArea, settingName)
 					: formatConfigSummaryFromPayload(postPayload, arguments.apiArea);
 
-				if(NOT arguments.showEmptyNodes AND preDisplay EQ "(not configured)" AND postDisplay EQ "(not configured)")
+				if(NOT arguments.showEmptyNodes AND preDisplay EQ "(empty)" AND postDisplay EQ "(empty)")
 					continue;
 
 				var passed = aiNodeVerificationPassed(
@@ -1431,11 +1854,11 @@ component output="true" {
 				// A node in a different cluster/environment than the current one is out of scope
 				// for this change, regardless of whether the underlying resource is genuinely
 				// isolated per node (mail/CCS-replicated settings) or, in this environment,
-				// physically shared across all instances (ColdFusion Collections' Solr backend) —
+				// physically shared across all instances (ColdFusion Collections' Solr backend) â€”
 				// either way, a cross-cluster node should never be reported as having received an
 				// update it isn't supposed to get. Same-cluster peers are left alone here and show
 				// whatever was actually fetched, since same-cluster sync IS expected to be visible.
-				var currentKey = CGI.SERVER_NAME & "::" & CGI.SERVER_PORT;
+				var currentKey = resolveCurrentServerCcsKey();
 				var isCrossCluster = false;
 				if(NOT isCurrentServerNodeKey(nodeKey)
 						AND structKeyExists(application, "ccsConfigMap")
@@ -1525,13 +1948,26 @@ component output="true" {
 		return fieldValuesEquivalent(presetField, postField);
 	}
 
+	private string function resolveCurrentServerCcsKey(){
+		var directKey = CGI.SERVER_NAME & "::" & CGI.SERVER_PORT;
+		if(structKeyExists(application, "ccsConfigMap") AND application.ccsConfigMap.keyExists(directKey))
+			return directKey;
+		if(structKeyExists(application, "ccsConfigMap")){
+			for(var k in application.ccsConfigMap){
+				var parts = listToArray(k, "::", false, true);
+				if(arrayLen(parts) GTE 2 AND val(parts[2]) EQ val(CGI.SERVER_PORT))
+					return k;
+			}
+		}
+		return directKey;
+	}
 	private boolean function isNodeInCurrentCluster(required string nodeKey){
 		if(NOT structKeyExists(application, "constants"))
 			application.constants = new cfsuite.ccssuite.constants().init();
 		if(NOT structKeyExists(application, "ccsConfigMap"))
 			return true;
 
-		var currentKey = CGI.SERVER_NAME & "::" & CGI.SERVER_PORT;
+				var currentKey = resolveCurrentServerCcsKey();
 		if(NOT application.ccsConfigMap.keyExists(currentKey) OR NOT application.ccsConfigMap.keyExists(arguments.nodeKey))
 			return true;
 
@@ -1552,7 +1988,9 @@ component output="true" {
 		try {
 			if(lCase(arguments.apiArea) EQ "embeddingmodels")
 				return new cfsuite.ccssuite.utils.embeddingConfigUtil().init().decodeConfigValue(arguments.payload);
-			if(listFindNoCase("vectorstores,RAG", arguments.apiArea))
+			if(lCase(arguments.apiArea) EQ "rag")
+				return new cfsuite.ccssuite.utils.ragConfigUtil().init().decodeConfigValue(arguments.payload);
+			if(lCase(arguments.apiArea) EQ "vectorstores")
 				return new cfsuite.ccssuite.utils.vectorstoreConfigUtil().init().decodeConfigValue(arguments.payload);
 			if(lCase(arguments.apiArea) EQ "mcpservers")
 				return new cfsuite.ccssuite.utils.mcpConfigUtil().init().decodeConfigValue(arguments.payload);
@@ -1567,20 +2005,40 @@ component output="true" {
 		}
 	}
 
-	private struct function getDefaultConfigForArea(required string apiArea){
+	public boolean function isAiTextField(required string fieldName){
+		var key = normalizeAiFieldName(arguments.fieldName);
+		return listFindNoCase("apikey,indexname,url,username,password,embeddingmodel,collectionname,databasename,podenvironment,baseurl,organizationid,projectid,userid,user,stopsequences,filepath,directorypath,urlpath,filepattern", key) GT 0;
+	}
+
+	private struct function getDefaultConfigForArea(required string apiArea, string alias = ""){
 		if(lCase(arguments.apiArea) EQ "embeddingmodels")
 			return getDefaultEmbeddingConfig();
-		if(listFindNoCase("vectorstores,RAG", arguments.apiArea))
+		if(lCase(arguments.apiArea) EQ "rag")
+			return getDefaultRagConfig();
+		if(lCase(arguments.apiArea) EQ "vectorstores"){
+			if(findNoCase("PineconePod", arguments.alias))
+				return getDefaultPineconePodConfig();
+			if(findNoCase("Pinecone", arguments.alias))
+				return getDefaultPineconeConfig();
+			if(findNoCase("Qdrant", arguments.alias))
+				return getDefaultQdrantConfig();
+			if(findNoCase("Chroma", arguments.alias))
+				return getDefaultChromaConfig();
 			return getDefaultVectorStoreConfig();
+		}
 		return getDefaultLLMConfig();
 	}
 
-	private any function getBaselineFieldValue(required any payload, required string fieldName, required string apiArea){
+	private any function getBaselineFieldValue(required any payload, required string fieldName, required string apiArea, string alias = ""){
+		if(isAiTextField(arguments.fieldName))
+			return "";
+		if(lCase(arguments.fieldName) EQ "sourcetypesinglefile")
+			return "false";
 		var config = decodeConfigPayload(arguments.payload, arguments.apiArea);
 		if(NOT structIsEmpty(config))
 			return extractConfigFieldValue(config, arguments.fieldName);
 
-		return extractConfigFieldValue(getDefaultConfigForArea(arguments.apiArea), arguments.fieldName);
+		return extractConfigFieldValue(getDefaultConfigForArea(arguments.apiArea, arguments.alias), arguments.fieldName);
 	}
 
 	public any function extractConfigFieldValue(required struct config, required string fieldName){
@@ -1657,6 +2115,21 @@ component output="true" {
 		if(key EQ "topk") return structKeyExists(arguments.config, "topK") ? arguments.config.topK : "";
 		if(key EQ "minscore") return structKeyExists(arguments.config, "minScore") ? arguments.config.minScore : "";
 		if(key EQ "embeddingmodel") return structKeyExists(arguments.config, "embeddingModel") ? arguments.config.embeddingModel : "";
+		// Pinecone
+		if(key EQ "indexname") return structKeyExists(arguments.config, "index") ? arguments.config.index : "";
+		if(key EQ "namespace") return structKeyExists(arguments.config, "namespace") ? arguments.config.namespace : "";
+		if(key EQ "serverconfigtype") return structKeyExists(arguments.config, "serverless") ? "serverless" : (structKeyExists(arguments.config, "pod") ? "pod" : "");
+		if(key EQ "serverlessdimension") return (structKeyExists(arguments.config, "serverless") AND structKeyExists(arguments.config.serverless, "dimension")) ? arguments.config.serverless.dimension : "";
+		if(key EQ "cloudprovider") return (structKeyExists(arguments.config, "serverless") AND structKeyExists(arguments.config.serverless, "cloud")) ? arguments.config.serverless.cloud : "";
+		if(key EQ "serverlessregion") return (structKeyExists(arguments.config, "serverless") AND structKeyExists(arguments.config.serverless, "region")) ? arguments.config.serverless.region : "";
+		if(key EQ "deletionprotection") return (structKeyExists(arguments.config, "serverless") AND structKeyExists(arguments.config.serverless, "deletionProtection")) ? arguments.config.serverless.deletionProtection : "";
+		if(key EQ "poddimension") return (structKeyExists(arguments.config, "pod") AND structKeyExists(arguments.config.pod, "dimension")) ? arguments.config.pod.dimension : "";
+		if(key EQ "podenvironment") return (structKeyExists(arguments.config, "pod") AND structKeyExists(arguments.config.pod, "environment")) ? arguments.config.pod.environment : "";
+		if(key EQ "podtype") return (structKeyExists(arguments.config, "pod") AND structKeyExists(arguments.config.pod, "podType")) ? arguments.config.pod.podType : "";
+		// Qdrant
+		if(key EQ "qdrantmetrictype") return structKeyExists(arguments.config, "metricType") ? arguments.config.metricType : "";
+		// Chroma
+		if(key EQ "tenantname") return structKeyExists(arguments.config, "tenantName") ? arguments.config.tenantName : "";
 		if(key EQ "calltimeout") return getVectorStoreConnectionField(arguments.config, "callTimeout", "");
 		if(key EQ "connectiontimeout") return getVectorStoreConnectionField(arguments.config, "connectionTimeout", "");
 		if(key EQ "keepalive") return getVectorStoreConnectionField(arguments.config, "keepAlive", "");
@@ -1668,6 +2141,32 @@ component output="true" {
 		if(key EQ "initialbackoff") return getVectorStoreRetryField(arguments.config, "initialBackoff", "");
 		if(key EQ "maxbackoff") return getVectorStoreRetryField(arguments.config, "maxBackoff", "");
 		if(key EQ "backoffmultiplier") return getVectorStoreRetryField(arguments.config, "backOffMultiplier", "");
+		if(key EQ "vectorstorealias") return structKeyExists(arguments.config, "vectorStoreAlias") ? arguments.config.vectorStoreAlias : "";
+		if(key EQ "embeddingmodeloverride") return structKeyExists(arguments.config, "embeddingModelOverride") ? arguments.config.embeddingModelOverride : "";
+		if(key EQ "sourcetype") return structKeyExists(arguments.config, "sourceType") ? arguments.config.sourceType : "";
+		if(key EQ "sourcetypesinglefile") return structKeyExists(arguments.config, "sourceType") ? (arguments.config.sourceType EQ "Single File" ? "true" : "false") : "false";
+		if(key EQ "sourcetypedirectory") return structKeyExists(arguments.config, "sourceType") ? (arguments.config.sourceType EQ "Directory" ? "true" : "false") : "false";
+		if(key EQ "sourcetypeurl") return structKeyExists(arguments.config, "sourceType") ? (arguments.config.sourceType EQ "URL" ? "true" : "false") : "false";
+		if(key EQ "filepath") return structKeyExists(arguments.config, "filePath") ? arguments.config.filePath : "";
+		if(key EQ "directorypath") return structKeyExists(arguments.config, "directoryPath") ? arguments.config.directoryPath : "";
+		if(key EQ "urlpath") return structKeyExists(arguments.config, "urlPath") ? arguments.config.urlPath : "";
+		if(key EQ "parsertype") return structKeyExists(arguments.config, "parserType") ? arguments.config.parserType : "";
+		if(key EQ "charset") return structKeyExists(arguments.config, "charset") ? arguments.config.charset : "";
+		if(key EQ "maxfilesize") return structKeyExists(arguments.config, "maxFileSize") ? arguments.config.maxFileSize : "";
+		if(key EQ "recursive") return structKeyExists(arguments.config, "recursive") ? arguments.config.recursive : "";
+		if(key EQ "filepattern") return structKeyExists(arguments.config, "filePattern") ? arguments.config.filePattern : "";
+		if(key EQ "patterntype") return structKeyExists(arguments.config, "patternType") ? arguments.config.patternType : "";
+		if(key EQ "parallel") return structKeyExists(arguments.config, "parallel") ? arguments.config.parallel : "";
+		if(key EQ "maxthreads") return structKeyExists(arguments.config, "maxThreads") ? arguments.config.maxThreads : "";
+		if(key EQ "readtimeout") return structKeyExists(arguments.config, "readTimeout") ? arguments.config.readTimeout : "";
+		if(key EQ "urlmaxretries") return structKeyExists(arguments.config, "urlMaxRetries") ? arguments.config.urlMaxRetries : "";
+		if(key EQ "useragent") return structKeyExists(arguments.config, "userAgent") ? arguments.config.userAgent : "";
+		if(key EQ "splittertype") return structKeyExists(arguments.config, "splitterType") ? arguments.config.splitterType : "";
+		if(key EQ "chunksize") return structKeyExists(arguments.config, "chunkSize") ? arguments.config.chunkSize : "";
+		if(key EQ "chunkoverlap") return structKeyExists(arguments.config, "chunkOverlap") ? arguments.config.chunkOverlap : "";
+		if(key EQ "regexpattern") return structKeyExists(arguments.config, "regexPattern") ? arguments.config.regexPattern : "";
+		if(key EQ "customseparators") return structKeyExists(arguments.config, "customSeparators") ? arguments.config.customSeparators : "";
+		if(key EQ "continueonerror") return structKeyExists(arguments.config, "continueOnError") ? arguments.config.continueOnError : "";
 		return "";
 	}
 
@@ -1679,13 +2178,13 @@ component output="true" {
 
 	public string function formatFieldDisplayValue(required any value){
 		if(isNull(arguments.value))
-			return "(not configured)";
+			return "(empty)";
 		if(isNumeric(arguments.value) AND NOT listFindNoCase("true,false,yes,no", lCase(trim("" & arguments.value))))
 			return "" & val(arguments.value);
 		if(isBoolean(arguments.value) AND NOT isNumeric(arguments.value))
 			return arguments.value ? "true" : "false";
 		if(NOT len(trim("" & arguments.value)))
-			return "(not configured)";
+			return "(empty)";
 		return trim("" & arguments.value);
 	}
 
@@ -1696,17 +2195,25 @@ component output="true" {
 		return extractConfigFieldValue(config, arguments.fieldName);
 	}
 
-	private string function formatExistingFieldDisplay(required any payload, required string fieldName, required string apiArea){
+	private string function formatExistingFieldDisplay(required any payload, required string fieldName, required string apiArea, string alias = ""){
+		if(isAiTextField(arguments.fieldName))
+			return "(empty)";
+		if(lCase(arguments.fieldName) EQ "sourcetypesinglefile")
+			return "false";
 		var config = decodeConfigPayload(arguments.payload, arguments.apiArea);
 		if(structIsEmpty(config))
-			return formatOptionalFieldDisplay(getBaselineFieldValue(arguments.payload, arguments.fieldName, arguments.apiArea), arguments.fieldName);
+			return formatOptionalFieldDisplay(getBaselineFieldValue(arguments.payload, arguments.fieldName, arguments.apiArea, arguments.alias), arguments.fieldName);
 		return formatOptionalFieldDisplay(extractConfigFieldValue(config, arguments.fieldName), arguments.fieldName);
 	}
 
-	private string function formatUpdatedFieldDisplay(required any payload, required string fieldName, required string apiArea){
+	private string function formatUpdatedFieldDisplay(required any payload, required string fieldName, required string apiArea, string alias = ""){
 		var config = decodeConfigPayload(arguments.payload, arguments.apiArea);
 		if(structIsEmpty(config))
-			return formatOptionalFieldDisplay(getBaselineFieldValue(arguments.payload, arguments.fieldName, arguments.apiArea), arguments.fieldName);
+		{
+			if(lCase(arguments.fieldName) EQ "sourcetypesinglefile")
+				return "false";
+			return formatOptionalFieldDisplay(getBaselineFieldValue(arguments.payload, arguments.fieldName, arguments.apiArea, arguments.alias), arguments.fieldName);
+		}
 		return formatOptionalFieldDisplay(extractConfigFieldValue(config, arguments.fieldName), arguments.fieldName);
 	}
 
@@ -1717,8 +2224,7 @@ component output="true" {
 	}
 
 	private boolean function isOptionalEmptyField(required string fieldName){
-		var key = normalizeAiFieldName(arguments.fieldName);
-		return listFindNoCase("apikey,username,password,embeddingmodel", key) GT 0;
+		return isAiTextField(arguments.fieldName);
 	}
 
 	private string function formatFieldDisplayFromPayload(required any payload, required string fieldName, required string apiArea){
@@ -1738,13 +2244,32 @@ component output="true" {
 			if(structKeyExists(config, "dimension")) arrayAppend(parts, "dimension=" & formatFieldDisplayValue(config.dimension));
 			if(structKeyExists(config, "apiKey") AND len(trim("" & config.apiKey))) arrayAppend(parts, "apiKey=(configured)");
 		}
-		else if(listFindNoCase("vectorstores,RAG", arguments.apiArea)){
+		else if(lCase(arguments.apiArea) EQ "rag"){
+			if(structKeyExists(config, "vectorStoreAlias")) arrayAppend(parts, "vectorStoreAlias=" & formatFieldDisplayValue(config.vectorStoreAlias));
+			if(structKeyExists(config, "sourceType")) arrayAppend(parts, "sourceType=" & formatFieldDisplayValue(config.sourceType));
+			if(structKeyExists(config, "parserType")) arrayAppend(parts, "parserType=" & formatFieldDisplayValue(config.parserType));
+			if(structKeyExists(config, "splitterType")) arrayAppend(parts, "splitterType=" & formatFieldDisplayValue(config.splitterType));
+			if(structKeyExists(config, "chunkSize")) arrayAppend(parts, "chunkSize=" & formatFieldDisplayValue(config.chunkSize));
+		}
+		else if(listFindNoCase("vectorstores", arguments.apiArea)){
 			if(structKeyExists(config, "provider")) arrayAppend(parts, "provider=" & formatFieldDisplayValue(config.provider));
 			if(structKeyExists(config, "url")) arrayAppend(parts, "url=" & formatFieldDisplayValue(config.url));
 			if(structKeyExists(config, "dimension")) arrayAppend(parts, "dimension=" & formatFieldDisplayValue(config.dimension));
 			if(structKeyExists(config, "collectionName")) arrayAppend(parts, "collectionName=" & formatFieldDisplayValue(config.collectionName));
+			if(structKeyExists(config, "databaseName")) arrayAppend(parts, "databaseName=" & formatFieldDisplayValue(config.databaseName));
+			if(structKeyExists(config, "tenantName")) arrayAppend(parts, "tenantName=" & formatFieldDisplayValue(config.tenantName));
+			if(structKeyExists(config, "index")) arrayAppend(parts, "index=" & formatFieldDisplayValue(config.index));
+			if(structKeyExists(config, "namespace")) arrayAppend(parts, "namespace=" & formatFieldDisplayValue(config.namespace));
 			if(structKeyExists(config, "metricType")) arrayAppend(parts, "metricType=" & formatFieldDisplayValue(config.metricType));
 			if(structKeyExists(config, "indexType")) arrayAppend(parts, "indexType=" & formatFieldDisplayValue(config.indexType));
+			if(structKeyExists(config, "serverless") AND isStruct(config.serverless)){
+				if(structKeyExists(config.serverless, "cloud")) arrayAppend(parts, "cloud=" & formatFieldDisplayValue(config.serverless.cloud));
+				if(structKeyExists(config.serverless, "region")) arrayAppend(parts, "region=" & formatFieldDisplayValue(config.serverless.region));
+			}
+			if(structKeyExists(config, "pod") AND isStruct(config.pod)){
+				if(structKeyExists(config.pod, "environment")) arrayAppend(parts, "environment=" & formatFieldDisplayValue(config.pod.environment));
+				if(structKeyExists(config.pod, "podType")) arrayAppend(parts, "podType=" & formatFieldDisplayValue(config.pod.podType));
+			}
 			if(structKeyExists(config, "apiKey") AND len(trim("" & config.apiKey))) arrayAppend(parts, "apiKey=(configured)");
 			if(structKeyExists(config, "connectionSettings") AND isStruct(config.connectionSettings) AND structKeyExists(config.connectionSettings, "callTimeout"))
 				arrayAppend(parts, "callTimeout=" & formatFieldDisplayValue(config.connectionSettings.callTimeout));
@@ -1810,7 +2335,13 @@ component output="true" {
 	private boolean function isAiTestAlias(required string alias){
 		return compareNoCase(trim(arguments.alias), variables.LLM_TEST_ALIAS) EQ 0
 			OR compareNoCase(trim(arguments.alias), variables.EMBEDDING_TEST_ALIAS) EQ 0
-			OR compareNoCase(trim(arguments.alias), variables.VECTORSTORE_TEST_ALIAS) EQ 0;
+			OR findNoCase("CCSTestEmbedding", trim(arguments.alias)) EQ 1
+			OR compareNoCase(trim(arguments.alias), variables.VECTORSTORE_TEST_ALIAS) EQ 0
+			OR findNoCase("CCSTestVectorStore", trim(arguments.alias)) EQ 1
+			OR findNoCase("CCSTestPinecone", trim(arguments.alias)) EQ 1
+			OR findNoCase("CCSTestQdrant", trim(arguments.alias)) EQ 1
+			OR findNoCase("CCSTestChroma", trim(arguments.alias)) EQ 1
+			OR compareNoCase(trim(arguments.alias), variables.RAG_TEST_ALIAS) EQ 0;
 	}
 
 	private string function getApiAreaFromScriptPath(required string scriptPath){
@@ -1830,7 +2361,9 @@ component output="true" {
 			return true;
 		if(lCase(arguments.apiArea) EQ "embeddingmodels")
 			return structIsEmpty(new cfsuite.ccssuite.utils.embeddingConfigUtil().init().decodeConfigValue(raw));
-		if(listFindNoCase("vectorstores,RAG", arguments.apiArea))
+		if(lCase(arguments.apiArea) EQ "rag")
+			return structIsEmpty(new cfsuite.ccssuite.utils.ragConfigUtil().init().decodeConfigValue(raw));
+		if(lCase(arguments.apiArea) EQ "vectorstores")
 			return structIsEmpty(new cfsuite.ccssuite.utils.vectorstoreConfigUtil().init().decodeConfigValue(raw));
 		if(lCase(arguments.apiArea) EQ "llms")
 			return structIsEmpty(new cfsuite.ccssuite.utils.llmConfigUtil().init().decodeConfigValue(raw));

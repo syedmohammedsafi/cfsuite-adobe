@@ -302,7 +302,7 @@ component output="true" displayname=""  {
 		if(cleared)
 			writeOutput("remoteOpenOffice cleared on all reachable nodes (Admin runtime + neo-document.xml).<br>");
 		else
-			writeOutput("<strong>Warning:</strong> remoteOpenOffice clear may be incomplete — refresh Admin Document page; if values remain, restart the CF instance.<br>");
+			writeOutput("<strong>Warning:</strong> remoteOpenOffice clear may be incomplete  refresh Admin Document page; if values remain, restart the CF instance.<br>");
 	}
 
 
@@ -473,7 +473,8 @@ component output="true" displayname=""  {
 		// via getAdminLdapConfiguration() returns a fresh ciphertext blob, never the plaintext we set),
 		// so an exact match against the plaintext requested value isn't meaningful for it either.
 		var isEncryptedOnDiskSetting = (syncFrameApiArea EQ "solrserver" AND lCase(trim(syncFrameSettingName)) EQ "password")
-			OR (syncFrameApiArea EQ "administrator" AND lCase(trim(syncFrameSettingName)) EQ lCase("LdapUserBindPassword"));
+			OR (syncFrameApiArea EQ "administrator" AND lCase(trim(syncFrameSettingName)) EQ lCase("LdapUserBindPassword"))
+			OR (syncFrameApiArea EQ "webservices" AND listFindNoCase("wspassword,ccstestwebservicepassword", lCase(trim(syncFrameSettingName))));
 
 		if(NOT listFindNoCase("mail", syncFrameApiArea) AND NOT isEncryptedOnDiskSetting)
 			return serializeJSON(arguments.postSyncFrame) EQ serializeJSON(arguments.expectedPostSetFrame)
@@ -512,6 +513,15 @@ component output="true" displayname=""  {
 						}
 					}
 					else if(trim("" & actualPost) NEQ trim("" & expectedPost)){
+						return false
+					}
+				}
+				else if(isEncryptedOnDiskSetting){
+					if(len(trim("" & expectedPost)) EQ 0){
+						if(len(trim("" & actualPost)))
+							return false
+					}
+					else if(NOT len(trim("" & actualPost)) OR (trim("" & actualPost) NEQ trim("" & expectedPost) AND trim("" & actualPost) EQ trim("" & actualPre))){
 						return false
 					}
 				}
@@ -768,7 +778,7 @@ component output="true" displayname=""  {
 					else {
 						// Plain single-shot push races CCS's own organic replication reasserting a
 						// stale value right after the push lands (same race documented in
-						// propagateDocumentSettingToPrimePeers) — confirmed via direct testing that
+						// propagateDocumentSettingToPrimePeers)  confirmed via direct testing that
 						// this left Package Manager credential/host fields permanently stuck at
 						// their test value on a peer after rollback. setAndVerifySettingViaHttp
 						// re-pushes until the peer's own readback matches, so reuse it here too.
@@ -911,6 +921,8 @@ component output="true" displayname=""  {
 			new cfsuite.ccssuite.utils.serverSettingsApiUtil().init().setSetting(arguments.cfSetting, arguments.settingValue, arguments.apiArea);
 		else if(isSecurityMenuName(arguments.menuName))
 			new cfsuite.ccssuite.utils.securityConfigUtil().init().setSecuritySetting(arguments.cfSetting, arguments.settingValue, arguments.apiArea);
+		else if(isPackagingMenuName(arguments.menuName))
+			new cfsuite.ccssuite.utils.packagingConfigUtil().init().setPackagingSetting(arguments.cfSetting, arguments.settingValue, arguments.apiArea);
 		else
 			new cfsuite.ccssuite.utils.ccsApiUtil().init().setSetting(arguments.cfSetting, arguments.settingValue, arguments.apiArea, arguments.menuName);
 	}
@@ -1008,7 +1020,7 @@ component output="true" displayname=""  {
 		}
 
 		var errDetail = structKeyExists(response, "fileContent") ? trim(response.fileContent) : ""
-		if(len(errDetail)) errDetail = " — #errDetail#"
+		if(len(errDetail)) errDetail = "  #errDetail#"
 		var hint = "";
 		if(findNoCase("404", response.statusCode)){
 			hint = " Deploy ccssuite on that node and open /cfsuite/ccssuite/i.cfm once, or set application.ccsTestNodesScope = ""currentPort"" in Application.cfc (restart app).";
@@ -1143,6 +1155,11 @@ component output="true" displayname=""  {
 	}
 
 
+	private boolean function isPackagingMenuName(required string menuName){
+		return findNoCase("packaging", arguments.menuName) GT 0;
+	}
+
+
 	private boolean function isErrorHtmlBody(required string body){
 		return findNoCase("<html", arguments.body)
 			AND (findNoCase("error occurred while executing", arguments.body) OR findNoCase("<title>Error</title>", arguments.body))
@@ -1155,6 +1172,8 @@ component output="true" displayname=""  {
 				return trim("" & new cfsuite.ccssuite.utils.serverSettingsApiUtil().init().getSetting(arguments.cfSetting, arguments.apiArea));
 			if(isSecurityMenuName(arguments.menuName))
 				return trim("" & new cfsuite.ccssuite.utils.securityConfigUtil().init().getSecuritySetting(arguments.cfSetting, arguments.apiArea));
+			if(isPackagingMenuName(arguments.menuName))
+				return trim("" & new cfsuite.ccssuite.utils.packagingConfigUtil().init().getPackagingSetting(arguments.cfSetting, arguments.apiArea));
 			return trim("" & new cfsuite.ccssuite.utils.ccsApiUtil().init().getSetting(arguments.cfSetting, arguments.apiArea, arguments.menuName));
 		}
 		catch(any e){
@@ -1173,7 +1192,7 @@ component output="true" displayname=""  {
 		catch(any e){
 			var detail = e.message;
 			if(structKeyExists(e, "detail") AND len(trim("" & e.detail)))
-				detail &= " — " & e.detail;
+				detail &= "  " & e.detail;
 			writeErrorAlert("Local set failed", detail);
 			return false
 		}

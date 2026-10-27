@@ -1,9 +1,7 @@
 component {
-
 	public function init(){
 		return this;
 	}
-
 	private struct function getConstants(){
 		if(isDefined("application") AND structKeyExists(application, "constants") AND isStruct(application.constants))
 			return application.constants;
@@ -11,11 +9,9 @@ component {
 			request.constants = new cfsuite.ccssuite.constants().init();
 		return request.constants;
 	}
-
 	private void function ensureConstants(){
 		getConstants();
 	}
-
 	public any function getSetting(required string settingName, required string apiArea, required string menuName){
 		ensureConstants();
 		switch(arguments.menuName){
@@ -41,7 +37,6 @@ component {
 				throw(message="Unknown menu name: #arguments.menuName#");
 		}
 	}
-
 	public any function setSetting(required string settingName, required any settingValue, required string apiArea, required string menuName){
 		ensureConstants();
 		switch(arguments.menuName){
@@ -67,7 +62,6 @@ component {
 				throw(message="Unknown menu name: #arguments.menuName#");
 		}
 	}
-
 	// DATA & SERVICES
 	private any function getDataServicesSetting(required string settingName, required string apiArea){
 		switch(arguments.apiArea){
@@ -100,6 +94,14 @@ component {
 					return new cfsuite.ccssuite.utils.webServicesConfigUtil().init().getWebServiceProxyUsernameSetting(arguments.settingName);
 				if(lCase(arguments.settingName) EQ "ccstestwebserviceproxypassword")
 					return new cfsuite.ccssuite.utils.webServicesConfigUtil().init().getWebServiceProxyPasswordSetting(arguments.settingName);
+				if(listFindNoCase("ccstestwebserviceusername,wsusername", arguments.settingName))
+					return new cfsuite.ccssuite.utils.webServicesConfigUtil().init().getWebServiceUsernameSetting(arguments.settingName);
+				if(listFindNoCase("ccstestwebservicepassword,wspassword", arguments.settingName))
+					return new cfsuite.ccssuite.utils.webServicesConfigUtil().init().getWebServicePasswordSetting(arguments.settingName);
+				if(listFindNoCase("ccstestwebservicedomain,wsdomain", arguments.settingName))
+					return new cfsuite.ccssuite.utils.webServicesConfigUtil().init().getWebServiceDomainSetting(arguments.settingName);
+				if(listFindNoCase("ccstestwebserviceworkstation,wsworkstation", arguments.settingName))
+					return new cfsuite.ccssuite.utils.webServicesConfigUtil().init().getWebServiceWorkstationSetting(arguments.settingName);
 				return new cfsuite.ccssuite.utils.webServicesConfigUtil().init().getWebServiceMappingSetting(arguments.settingName);
 			case "restServices":
 				if(lCase(arguments.settingName) EQ "ccstestrestservicehost")
@@ -196,6 +198,8 @@ component {
 					return new cfsuite.ccssuite.utils.cloudConfigConfigUtil().init().getCloudConfigThrottleBackoffMaxBackoffTimeSetting(arguments.settingName);
 				if(lCase(arguments.settingName) EQ "ccstestcloudconfigthrottlebackofffixeddelay")
 					return new cfsuite.ccssuite.utils.cloudConfigConfigUtil().init().getCloudConfigThrottleBackoffFixedDelaySetting(arguments.settingName);
+				if(new cfsuite.ccssuite.utils.cloudConfigConfigUtil().init().hasFieldDefinition(arguments.settingName))
+					return new cfsuite.ccssuite.utils.cloudConfigConfigUtil().init().getGenericCloudSetting(arguments.settingName);
 				return new cfsuite.ccssuite.utils.cloudConfigConfigUtil().init().getCloudConfigAliasSetting(arguments.settingName);
 			case "graphql":
 				if(lCase(arguments.settingName) EQ "ccstestgraphqlservicename")
@@ -217,7 +221,6 @@ component {
 				throw(message="Unsupported Data & Services area: #arguments.apiArea#");
 		}
 	}
-
 	private any function setDataServicesSetting(required string settingName, required any settingValue, required string apiArea){
 		switch(arguments.apiArea){
 			case "datasources":
@@ -249,6 +252,14 @@ component {
 					return new cfsuite.ccssuite.utils.webServicesConfigUtil().init().setWebServiceProxyUsernameSetting(arguments.settingName, arguments.settingValue);
 				if(lCase(arguments.settingName) EQ "ccstestwebserviceproxypassword")
 					return new cfsuite.ccssuite.utils.webServicesConfigUtil().init().setWebServiceProxyPasswordSetting(arguments.settingName, arguments.settingValue);
+				if(listFindNoCase("ccstestwebserviceusername,wsusername", arguments.settingName))
+					return new cfsuite.ccssuite.utils.webServicesConfigUtil().init().setWebServiceUsernameSetting(arguments.settingName, arguments.settingValue);
+				if(listFindNoCase("ccstestwebservicepassword,wspassword", arguments.settingName))
+					return new cfsuite.ccssuite.utils.webServicesConfigUtil().init().setWebServicePasswordSetting(arguments.settingName, arguments.settingValue);
+				if(listFindNoCase("ccstestwebservicedomain,wsdomain", arguments.settingName))
+					return new cfsuite.ccssuite.utils.webServicesConfigUtil().init().setWebServiceDomainSetting(arguments.settingName, arguments.settingValue);
+				if(listFindNoCase("ccstestwebserviceworkstation,wsworkstation", arguments.settingName))
+					return new cfsuite.ccssuite.utils.webServicesConfigUtil().init().setWebServiceWorkstationSetting(arguments.settingName, arguments.settingValue);
 				return new cfsuite.ccssuite.utils.webServicesConfigUtil().init().setWebServiceMappingSetting(arguments.settingName, arguments.settingValue);
 			case "restServices":
 				if(lCase(arguments.settingName) EQ "ccstestrestservicehost")
@@ -345,6 +356,8 @@ component {
 					return new cfsuite.ccssuite.utils.cloudConfigConfigUtil().init().setCloudConfigThrottleBackoffMaxBackoffTimeSetting(arguments.settingName, arguments.settingValue);
 				if(lCase(arguments.settingName) EQ "ccstestcloudconfigthrottlebackofffixeddelay")
 					return new cfsuite.ccssuite.utils.cloudConfigConfigUtil().init().setCloudConfigThrottleBackoffFixedDelaySetting(arguments.settingName, arguments.settingValue);
+				if(new cfsuite.ccssuite.utils.cloudConfigConfigUtil().init().hasFieldDefinition(arguments.settingName))
+					return new cfsuite.ccssuite.utils.cloudConfigConfigUtil().init().setGenericCloudSetting(arguments.settingName, arguments.settingValue);
 				return new cfsuite.ccssuite.utils.cloudConfigConfigUtil().init().setCloudConfigAliasSetting(arguments.settingName, arguments.settingValue);
 			case "graphql":
 				if(lCase(arguments.settingName) EQ "ccstestgraphqlservicename")
@@ -366,14 +379,12 @@ component {
 				throw(message="Unsupported Data & Services area: #arguments.apiArea#");
 		}
 	}
-
 	// DEBUGGING & LOGGING
 	private any function getDebuggingSetting(required string settingName, required string apiArea){
 		if(arguments.apiArea EQ "systemProbes")
 			return new cfsuite.ccssuite.utils.systemProbesConfigUtil().init().getSetting(arguments.settingName);
 		var debugUtil = new cfsuite.ccssuite.utils.debuggingConfigUtil().init();
 		var logUtil = new cfsuite.ccssuite.utils.loggingConfigUtil().init();
-
 		switch(arguments.settingName){
 			case "LogSlowRequests":
 				return logUtil.getLogSlowRequests() ? "YES" : "NO";
@@ -431,13 +442,11 @@ component {
 				throw(message="Unsupported debugging setting: " & arguments.settingName);
 		}
 	}
-
 	private any function setDebuggingSetting(required string settingName, required any settingValue, required string apiArea){
 		if(arguments.apiArea EQ "systemProbes")
 			return new cfsuite.ccssuite.utils.systemProbesConfigUtil().init().setSetting(arguments.settingName, arguments.settingValue);
 		var debugUtil = new cfsuite.ccssuite.utils.debuggingConfigUtil().init();
 		var logUtil = new cfsuite.ccssuite.utils.loggingConfigUtil().init();
-
 		switch(arguments.settingName){
 			case "LogSlowRequests":
 				return logUtil.setLogSlowRequests(arguments.settingValue) ? "YES" : "NO";
@@ -495,7 +504,6 @@ component {
 				throw(message="Unsupported debugging setting: " & arguments.settingName);
 		}
 	}
-
 	// AI SERVICES
 	private any function getAiSetting(required string settingName, required string apiArea){
 		switch(arguments.apiArea){
@@ -508,9 +516,7 @@ component {
 			case "vectorstores":
 				return new cfsuite.ccssuite.utils.vectorstoreConfigUtil().init().getVectorStoreSetting(arguments.settingName);
 			case "RAG":
-				// RAG has no settings of its own; it consumes Vector Store configs, which are
-				// now always read/written through the live VectorStoreService.
-				return new cfsuite.ccssuite.utils.vectorstoreConfigUtil().init().getVectorStoreSetting(arguments.settingName);
+				return new cfsuite.ccssuite.utils.ragConfigUtil().init().getRagSetting(arguments.settingName);
 			default:
 				if(arguments.settingName == "mcpServers") {
 					return new cfsuite.ccssuite.utils.mcpConfigUtil().init().getMCPSetting(arguments.settingName);
@@ -523,7 +529,6 @@ component {
 				}
 		}
 	}
-
 	private any function setAiSetting(required string settingName, required any settingValue, required string apiArea){
 		switch(arguments.apiArea){
 			case "embeddingModels":
@@ -537,9 +542,7 @@ component {
 				new cfsuite.ccssuite.utils.vectorstoreConfigUtil().init().setVectorStoreSetting(arguments.settingName, arguments.settingValue);
 				return arguments.settingValue;
 			case "RAG":
-				// Writes go through the same Vector Store storage; RAG has no separate config.
-				new cfsuite.ccssuite.utils.vectorstoreConfigUtil().init().setVectorStoreSetting(arguments.settingName, arguments.settingValue);
-				return arguments.settingValue;
+				return new cfsuite.ccssuite.utils.ragConfigUtil().init().setRagSetting(arguments.settingName, arguments.settingValue);
 			default:
 				if(arguments.settingName == "mcpServers") {
 					new cfsuite.ccssuite.utils.mcpConfigUtil().init().setMCPSetting(arguments.settingName, arguments.settingValue);
@@ -553,13 +556,11 @@ component {
 				return arguments.settingValue;
 		}
 	}
-
 	// SECURITY
 	private any function getSecuritySetting(required string settingName, required string apiArea){
 		var adminUtil = new cfsuite.ccssuite.utils.adminUtil().init();
 		var admin = adminUtil.createAdministrator();
 		adminUtil.login(getConstants().CF_CONFIG);
-
 		try {
 			switch(arguments.apiArea){
 				case "AllowIPaddress":
@@ -612,12 +613,10 @@ component {
 			adminUtil.logout(admin);
 		}
 	}
-
 	private any function setSecuritySetting(required string settingName, required any settingValue, required string apiArea){
 		var adminUtil = new cfsuite.ccssuite.utils.adminUtil().init();
 		var admin = adminUtil.createAdministrator();
 		adminUtil.login(getConstants().CF_CONFIG);
-
 		try {
 			switch(arguments.apiArea){
 				case "AllowIPaddress":
@@ -688,13 +687,11 @@ component {
 							else if (arguments.settingName EQ "clientCertUseCGI") keyName = "useCGI";
 							else if (arguments.settingName EQ "clientCertSubjectHeader") keyName = "subjectHeader";
 							else if (arguments.settingName EQ "clientCertMatchCriteria") keyName = "matchCriteria";
-
 							var valToSet = arguments.settingValue;
 							if (keyName EQ "enabled" OR keyName EQ "rootAdminEnabled" OR keyName EQ "useCGI") {
 								valToSet = isBoolean(valToSet) ? javaCast("boolean", valToSet) : false;
 							}
 							config[keyName] = valToSet;
-
 							if (keyName EQ "enabled") {
 								if (valToSet EQ true) {
 									if (NOT config.useCGI AND len(trim(config.subjectHeader)) EQ 0) {
@@ -706,7 +703,6 @@ component {
 									}
 								}
 							}
-
 							security.setClientCertConfig(config);
 							var configNew = security.getClientCertConfig();
 							return trim(configNew[keyName]);
@@ -720,7 +716,6 @@ component {
 			adminUtil.logout(admin);
 		}
 	}
-
 	private string function getOrSetAllowedAdminIPList(string valToSet = "") {
 		var tempPath = server.coldfusion.rootdir & "/wwwroot/CFIDE/tempSetter.cfm";
 		var tempContent = "<cfscript>" &
@@ -772,19 +767,15 @@ component {
 			throw(message="Failed to get/set allowed admin IP list: " & resultText);
 		}
 	}
-
 	private any function getExtensionsSetting(required string settingName, required string apiArea){
 		return new cfsuite.ccssuite.utils.extensionsConfigUtil().init().getExtensionsSetting(arguments.settingName);
 	}
-
 	private any function setExtensionsSetting(required string settingName, required any settingValue, required string apiArea){
 		return new cfsuite.ccssuite.utils.extensionsConfigUtil().init().setExtensionsSetting(arguments.settingName, arguments.settingValue);
 	}
-
 	private any function getEventGatewaysSetting(required string settingName, required string apiArea){
 		return new cfsuite.ccssuite.utils.eventGatewaysConfigUtil().init().getEventGatewaysSetting(arguments.settingName);
 	}
-
 	private any function setEventGatewaysSetting(required string settingName, required any settingValue, required string apiArea){
 		return new cfsuite.ccssuite.utils.eventGatewaysConfigUtil().init().setEventGatewaysSetting(arguments.settingName, arguments.settingValue);
 	}

@@ -538,4 +538,223 @@ component output="false" {
 		}
 		return getWebServiceProxyPasswordSetting(arguments.webServiceName);
 	}
+/**
+	* "Username" field test (wsusername): the tracked value is the web service authentication username
+	* string for a fixed test service — index 2 of neo-xmlrpc.xml's array is the "usernames" struct
+	* {webServiceName: username} (confirmed via direct testing). Stored in plain text. A fixed default
+	* WSDL is used internally to satisfy setWebService()'s requirement for a URL. Username's real
+	* default is blank (no authentication configured), following the standard empty->create->update pattern.
+	*/
+	public string function getWebServiceUsernameSetting(required string webServiceName){
+		var cfg = loadConfigArray();
+		if(arrayLen(cfg) LT 2 OR NOT isStruct(cfg[2]))
+			return "";
+		var key = findStructKey(cfg[2], arguments.webServiceName);
+		if(NOT structKeyExists(cfg[2], key))
+			return "";
+		return trim("" & cfg[2][key]);
+	}
+
+	public string function setWebServiceUsernameSetting(required string webServiceName, required any settingValue){
+		var value = trim("" & arguments.settingValue);
+		var runtime = getRuntime();
+		try {
+			if(NOT len(value)){
+				try {
+					runtime.api.deleteWebservice(arguments.webServiceName);
+				}
+				catch(any e){
+					if(NOT findNoCase("not found", e.message) AND NOT findNoCase("does not exist", e.message))
+						rethrow;
+				}
+			}
+			else {
+				runtime.api.setWebService(
+					name=arguments.webServiceName,
+					path=variables.DEFAULT_TEST_WSDL_URL,
+					username=value,
+					password="",
+					wsproxyserver="",
+					wsproxyport="",
+					wsproxyusername="",
+					wsproxypassword="",
+					wstimeout="",
+					authtype="none",
+					ntlmdomain="",
+					workstation=""
+				);
+			}
+		}
+		finally {
+			runtime.adminUtil.logout(runtime.admin);
+		}
+		return getWebServiceUsernameSetting(arguments.webServiceName);
+	}
+
+	/**
+	* "Password" field test (wspassword): the tracked value is the web service authentication password
+	* string for a fixed test service — index 3 of neo-xmlrpc.xml's array is the "passwords" struct
+	* {webServiceName: password} (confirmed via direct testing). Stored auto-encrypted by CF runtime
+	* in neo-xmlrpc.xml; decrypted via PasswordUtils for exact plaintext comparison. A fixed default
+	* WSDL is used internally to satisfy setWebService()'s requirement for a URL. Password's real default
+	* is blank, following the standard empty->create->update pattern.
+	*/
+	public string function getWebServicePasswordSetting(required string webServiceName){
+		var cfg = loadConfigArray();
+		if(arrayLen(cfg) LT 3 OR NOT isStruct(cfg[3]))
+			return "";
+		var key = findStructKey(cfg[3], arguments.webServiceName);
+		if(NOT structKeyExists(cfg[3], key))
+			return "";
+		var encPass = trim("" & cfg[3][key]);
+		if(NOT len(encPass))
+			return "";
+		try {
+			var pu = createObject("java", "coldfusion.util.PasswordUtils");
+			return pu.decryptPassword(encPass, pu.getInstance().getSeedValue());
+		}
+		catch(any e){
+			return encPass;
+		}
+	}
+
+	public string function setWebServicePasswordSetting(required string webServiceName, required any settingValue){
+		var value = trim("" & arguments.settingValue);
+		var runtime = getRuntime();
+		try {
+			if(NOT len(value)){
+				try {
+					runtime.api.deleteWebservice(arguments.webServiceName);
+				}
+				catch(any e){
+					if(NOT findNoCase("not found", e.message) AND NOT findNoCase("does not exist", e.message))
+						rethrow;
+				}
+			}
+			else {
+				runtime.api.setWebService(
+					name=arguments.webServiceName,
+					path=variables.DEFAULT_TEST_WSDL_URL,
+					username="",
+					password=value,
+					wsproxyserver="",
+					wsproxyport="",
+					wsproxyusername="",
+					wsproxypassword="",
+					wstimeout="",
+					authtype="none",
+					ntlmdomain="",
+					workstation=""
+				);
+			}
+		}
+		finally {
+			runtime.adminUtil.logout(runtime.admin);
+		}
+		return getWebServicePasswordSetting(arguments.webServiceName);
+	}
+
+	/**
+	* "Domain" field test (wsdomain): NTLM authentication domain for SOAP web services.
+	* Index 11 of neo-xmlrpc.xml's array is the "ntlmdomains" struct {webServiceName: ntlmdomain}
+	* (confirmed via direct testing). Stored in plain text. A fixed default WSDL is used internally.
+	* Domain's real default is blank, following the standard empty->create->update pattern.
+	*/
+	public string function getWebServiceDomainSetting(required string webServiceName){
+		var cfg = loadConfigArray();
+		if(arrayLen(cfg) LT 11 OR NOT isStruct(cfg[11]))
+			return "";
+		var key = findStructKey(cfg[11], arguments.webServiceName);
+		if(NOT structKeyExists(cfg[11], key))
+			return "";
+		return trim("" & cfg[11][key]);
+	}
+
+	public string function setWebServiceDomainSetting(required string webServiceName, required any settingValue){
+		var value = trim("" & arguments.settingValue);
+		var runtime = getRuntime();
+		try {
+			if(NOT len(value)){
+				try {
+					runtime.api.deleteWebservice(arguments.webServiceName);
+				}
+				catch(any e){
+					if(NOT findNoCase("not found", e.message) AND NOT findNoCase("does not exist", e.message))
+						rethrow;
+				}
+			}
+			else {
+				runtime.api.setWebService(
+					name=arguments.webServiceName,
+					path=variables.DEFAULT_TEST_WSDL_URL,
+					username="",
+					password="",
+					wsproxyserver="",
+					wsproxyport="",
+					wsproxyusername="",
+					wsproxypassword="",
+					wstimeout="",
+					authtype="none",
+					ntlmdomain=value,
+					workstation=""
+				);
+			}
+		}
+		finally {
+			runtime.adminUtil.logout(runtime.admin);
+		}
+		return getWebServiceDomainSetting(arguments.webServiceName);
+	}
+
+	/**
+	* "Workstation" field test (wsworkstation): NTLM workstation name for SOAP web services.
+	* Index 12 of neo-xmlrpc.xml's array is the "workstations" struct {webServiceName: workstation}
+	* (confirmed via direct testing). Stored in plain text. A fixed default WSDL is used internally.
+	* Workstation's real default is blank, following the standard empty->create->update pattern.
+	*/
+	public string function getWebServiceWorkstationSetting(required string webServiceName){
+		var cfg = loadConfigArray();
+		if(arrayLen(cfg) LT 12 OR NOT isStruct(cfg[12]))
+			return "";
+		var key = findStructKey(cfg[12], arguments.webServiceName);
+		if(NOT structKeyExists(cfg[12], key))
+			return "";
+		return trim("" & cfg[12][key]);
+	}
+
+	public string function setWebServiceWorkstationSetting(required string webServiceName, required any settingValue){
+		var value = trim("" & arguments.settingValue);
+		var runtime = getRuntime();
+		try {
+			if(NOT len(value)){
+				try {
+					runtime.api.deleteWebservice(arguments.webServiceName);
+				}
+				catch(any e){
+					if(NOT findNoCase("not found", e.message) AND NOT findNoCase("does not exist", e.message))
+						rethrow;
+				}
+			}
+			else {
+				runtime.api.setWebService(
+					name=arguments.webServiceName,
+					path=variables.DEFAULT_TEST_WSDL_URL,
+					username="",
+					password="",
+					wsproxyserver="",
+					wsproxyport="",
+					wsproxyusername="",
+					wsproxypassword="",
+					wstimeout="",
+					authtype="none",
+					ntlmdomain="",
+					workstation=value
+				);
+			}
+		}
+		finally {
+			runtime.adminUtil.logout(runtime.admin);
+		}
+		return getWebServiceWorkstationSetting(arguments.webServiceName);
+	}
 }

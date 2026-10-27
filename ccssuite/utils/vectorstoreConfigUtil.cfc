@@ -36,7 +36,17 @@ component output="false" {
 		"retryOnRateLimit" = "RETRYONRATELIMIT",
 		"initialBackoff" = "INITIALBACKOFF",
 		"maxBackoff" = "MAXBACKOFF",
-		"backOffMultiplier" = "BACKOFFMULTIPLIER"
+		"backOffMultiplier" = "BACKOFFMULTIPLIER",
+		"index" = "INDEX",
+		"namespace" = "NAMESPACE",
+		"serverless" = "SERVERLESS",
+		"cloud" = "CLOUD",
+		"region" = "REGION",
+		"deletionProtection" = "DELETIONPROTECTION",
+		"pod" = "POD",
+		"environment" = "ENVIRONMENT",
+		"podType" = "PODTYPE",
+		"tenantName" = "TENANTNAME"
 	};
 
 	public function init(){
@@ -155,10 +165,30 @@ component output="false" {
 
 		var wddxConfig = camelStructToWddx(config);
 		var vsService = getVectorStoreService();
+		var exists = false;
 		try {
-			vsService.modifyConfigData(arguments.alias, wddxConfig);
+			var curr = vsService.getConfigData(arguments.alias);
+			if(isDefined("curr")) exists = true;
 		}
 		catch(any e){
+			exists = false;
+		}
+
+		if(exists){
+			try {
+				vsService.modifyConfigData(arguments.alias, wddxConfig);
+			}
+			catch(any e){
+				try {
+					vsService.deleteConfigData(arguments.alias);
+					vsService.addConfigData(arguments.alias, wddxConfig);
+				}
+				catch(any e2){
+					rethrow;
+				}
+			}
+		}
+		else {
 			vsService.addConfigData(arguments.alias, wddxConfig);
 		}
 		return getVectorStoreSetting(arguments.alias);

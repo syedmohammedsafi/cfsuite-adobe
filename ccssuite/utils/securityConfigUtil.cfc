@@ -250,13 +250,6 @@ component output="false" {
 		ensureConstants();
 		var constants = getConstants();
 		var admin = createObject("component", "CFIDE.adminapi.administrator");
-		if(isSecurityServiceAvailable()){
-			try {
-				var ssCheck = getSecurityService();
-				if(NOT ssCheck.isAdminSecurityEnabled())
-					return admin;
-			} catch(any ex){}
-		}
 		var userId = structKeyExists(constants.CF_CONFIG, "CF_ADMIN_USERID")
 			? trim("" & constants.CF_CONFIG.CF_ADMIN_USERID) : "";
 		var defPwd = structKeyExists(constants.CF_CONFIG, "CF_ADMIN_PASSWORD") ? constants.CF_CONFIG.CF_ADMIN_PASSWORD : "password";
@@ -277,8 +270,16 @@ component output="false" {
 				}
 			}
 		}
-		if(NOT loggedIn)
+		if(NOT loggedIn){
+			if(isSecurityServiceAvailable()){
+				try {
+					var ssCheck = getSecurityService();
+					if(NOT ssCheck.isAdminSecurityEnabled())
+						return admin;
+				} catch(any ex){}
+			}
 			throw(message="Admin API login failed", type="CCSTest.AdminLoginFailed");
+		}
 		return admin;
 	}
 

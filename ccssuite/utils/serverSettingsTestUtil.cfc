@@ -883,6 +883,9 @@ component output="true" {
 	private any function getNewSetValueForSetting(required string settingName, required any currentValue, string scriptPath = ""){
 		var value = isSimpleValue(arguments.currentValue) ? trim("" & arguments.currentValue) : arguments.currentValue;
 
+		if(new cfsuite.ccssuite.utils.cloudConfigConfigUtil().init().hasFieldDefinition(arguments.settingName))
+			return new cfsuite.ccssuite.utils.cloudConfigConfigUtil().init().getPresetValue(arguments.settingName, value);
+
 		switch(arguments.settingName){
 			case "TimeoutRequestTimeLimit":
 			case "watch.interval":
@@ -1214,6 +1217,18 @@ component output="true" {
 				// Stored in plain text in neo-xmlrpc.xml (confirmed via direct testing, unlike
 				// the mail/Solr Server password fields), so no encryption-leniency needed here.
 				return (trim(value) EQ "ccsProxyPass1") ? "ccsProxyPass2" : "ccsProxyPass1";
+			case "CCSTestWebServiceUsername":
+			case "wsusername":
+				return (trim(value) EQ "ccsWsUser1") ? "ccsWsUser2" : "ccsWsUser1";
+			case "CCSTestWebServicePassword":
+			case "wspassword":
+				return (trim(value) EQ "ccsWsPass1") ? "ccsWsPass2" : "ccsWsPass1";
+			case "CCSTestWebServiceDomain":
+			case "wsdomain":
+				return (trim(value) EQ "ccsWsDomain1") ? "ccsWsDomain2" : "ccsWsDomain1";
+			case "CCSTestWebServiceWorkstation":
+			case "wsworkstation":
+				return (trim(value) EQ "ccsWsStation1") ? "ccsWsStation2" : "ccsWsStation1";
 			case "CCSTestRestService":
 				// Root Path's real default is blank (no such mapping registered), so this
 				// follows the same plain empty-\>create-\>update pattern as the Web Service

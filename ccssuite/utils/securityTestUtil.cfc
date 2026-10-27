@@ -1567,7 +1567,7 @@ component output="false" {
 			return trim("" & arguments.presetValue) EQ postText;
 		if(secUtil.isInstanceLocalSecuritySetting(arguments.settingName)){
 			if(NOT isCurrentPortNode(arguments.nodeKey))
-				return false;
+				return trim("" & arguments.presetValue) EQ postText;
 		}
 		if(listFindNoCase("AllowedAdminIpAdd,AllowedAdminIpRemove", arguments.settingName))
 			return secUtil.allowedIpValuesMatch(arguments.expectedValue, arguments.postValue, arguments.settingName);

@@ -4,6 +4,7 @@
 component output="false" {
 
 	variables.TEST_USER = "ccsTestUserMgr";
+	variables.TEST_SAML_USER = "ccsTestSamlUser@test.com";
 	variables.TEST_PASS = "CcsTestPass123!";
 	variables.TEST_ROLE = "AI Services > LLMs";
 	variables.TEST_DATASOURCE = "cfbookclub";
@@ -144,6 +145,48 @@ component output="false" {
 		}
 	}
 
+	public boolean function testSamlUserExists(){
+		var admin = loginAdmin();
+		try {
+			var u = getSecurityAdminApi().getUser(variables.TEST_SAML_USER);
+			return structKeyExists(u, "ISSAML") AND u.ISSAML;
+		}
+		catch(any e){
+			return false;
+		}
+		finally {
+			logoutAdmin(admin);
+		}
+	}
+
+	public void function ensureTestSamlUserPresent(){
+		ensureUserManagerPrerequisites();
+		if(testSamlUserExists())
+			return;
+		var admin = loginAdmin();
+		try {
+			var sec = getSecurityAdminApi();
+			sec.setUser(username=variables.TEST_SAML_USER, password=variables.TEST_PASS, isSaml=true);
+		}
+		finally {
+			logoutAdmin(admin);
+		}
+	}
+
+	public void function ensureTestSamlUserAbsent(){
+		var admin = loginAdmin();
+		try {
+			try {
+				getSecurityAdminApi().deleteUser(variables.TEST_SAML_USER);
+			}
+			catch(any e){}
+			removeUserFromNeo(variables.TEST_SAML_USER);
+		}
+		finally {
+			logoutAdmin(admin);
+		}
+	}
+
 	public void function ensureTestUserAbsent(){
 		if(NOT testUserExists())
 			return;
@@ -169,7 +212,9 @@ component output="false" {
 			allowadminaccess = false,
 			allowadminapiaccess = false,
 			securedFilePath = false,
-			isgroup = false
+			isgroup = false,
+			isLdap = false,
+			isSaml = false
 		};
 	}
 
@@ -190,7 +235,9 @@ component output="false" {
 				allowadminaccess = rolePresent(user, "coldfusion.administrator"),
 				allowadminapiaccess = rolePresent(user, "coldfusion.adminapi"),
 				securedFilePath = isSecuredFilePathPresentInNeo(),
-				isgroup = structKeyExists(user, "ISGROUP") ? user.ISGROUP : false
+				isgroup = structKeyExists(user, "ISGROUP") ? user.ISGROUP : false,
+				isLdap = structKeyExists(user, "ISLDAP") ? user.ISLDAP : false,
+				isSaml = structKeyExists(user, "ISSAML") ? user.ISSAML : false
 			};
 			return snapshot;
 		}
@@ -223,8 +270,18 @@ component output="false" {
 				allowrdsaccess = structKeyExists(arguments.snapshot, "allowrdsaccess") ? arguments.snapshot.allowrdsaccess : false,
 				allowadminaccess = structKeyExists(arguments.snapshot, "allowadminaccess") ? arguments.snapshot.allowadminaccess : false,
 				allowadminapiaccess = structKeyExists(arguments.snapshot, "allowadminapiaccess") ? arguments.snapshot.allowadminapiaccess : false,
-				isGroup = structKeyExists(arguments.snapshot, "isgroup") ? arguments.snapshot.isgroup : false
+				isGroup = structKeyExists(arguments.snapshot, "isgroup") ? arguments.snapshot.isgroup : false,
+				isLdap = structKeyExists(arguments.snapshot, "isLdap") ? arguments.snapshot.isLdap : false,
+				isSaml = structKeyExists(arguments.snapshot, "isSaml") ? arguments.snapshot.isSaml : false
 			};
+			var userAlreadyExists = false;
+			try {
+				sec.getUser(variables.TEST_USER);
+				userAlreadyExists = true;
+			} catch(any e){}
+			if(userAlreadyExists AND (isLdapUserInNeo() OR isSamlUserInNeo()) AND NOT args.isLdap AND NOT args.isSaml){
+				try { sec.deleteUser(variables.TEST_USER); } catch(any e){}
+			}
 			sec.setUser(argumentCollection=args);
 			if(arguments.manageSecuredFilePathInNeo){
 				setSecuredFilePathInNeo(structKeyExists(arguments.snapshot, "securedFilePath") ? arguments.snapshot.securedFilePath : false);
@@ -250,7 +307,12 @@ component output="false" {
 				getSecurityAdminApi().deleteUser(variables.TEST_USER);
 			}
 			catch(any e){}
+			try {
+				getSecurityAdminApi().deleteUser(variables.TEST_SAML_USER);
+			}
+			catch(any e){}
 			removeTestUserFromNeo();
+			removeUserFromNeo(variables.TEST_SAML_USER);
 			structDelete(application, "ccsTestUserPassword");
 			structDelete(application, "ccsTestUserPasswordConfirm");
 		}
@@ -307,7 +369,7 @@ component output="false" {
 			case lCase(variables.USER_TYPE_LDAP_SETTING):
 				return formatBooleanSettingValue(isLdapUserInNeo());
 			case lCase(variables.USER_TYPE_SAML_SETTING):
-				return formatBooleanSettingValue(isSamlUserInNeo());
+				return formatBooleanSettingValue(testSamlUserExists());
 			case lCase(variables.USER_ADMIN_CONSOLE_AND_API_SETTING):
 				return formatBooleanSettingValue(isAdminConsoleAndApiInNeo());
 			case lCase(variables.USER_API_ACCESS_ONLY_SETTING):
@@ -394,20 +456,31 @@ component output="false" {
 				}
 				return getUserManagerSetting(arguments.settingName);
 			case lCase(variables.USER_EXTERNAL_SETTING):
-				setExternalUserInNeo(toBoolean(arguments.settingValue));
-				return getUserManagerSetting(arguments.settingName);
+				var ext = toBoolean(arguments.settingValue);
+				snapshot.isLdap = ext;
+				if(ext) snapshot.isSaml = false;
+				break;
 			case lCase(variables.USER_TYPE_LDAP_SETTING):
-				setLdapUserInNeo(toBoolean(arguments.settingValue));
-				return getUserManagerSetting(arguments.settingName);
+				var isL = toBoolean(arguments.settingValue);
+				snapshot.isLdap = isL;
+				if(isL) snapshot.isSaml = false;
+				break;
 			case lCase(variables.USER_TYPE_SAML_SETTING):
-				setSamlUserInNeo(toBoolean(arguments.settingValue));
+				if(toBoolean(arguments.settingValue))
+					ensureTestSamlUserPresent();
+				else
+					ensureTestSamlUserAbsent();
 				return getUserManagerSetting(arguments.settingName);
 			case lCase(variables.USER_ADMIN_CONSOLE_AND_API_SETTING):
-				setAdminConsoleAndApiInNeo(toBoolean(arguments.settingValue));
-				return getUserManagerSetting(arguments.settingName);
+				var consoleAndApi = toBoolean(arguments.settingValue);
+				snapshot.allowadminaccess = consoleAndApi;
+				snapshot.allowadminapiaccess = NOT consoleAndApi;
+				break;
 			case lCase(variables.USER_API_ACCESS_ONLY_SETTING):
-				setApiAccessOnlyInNeo(toBoolean(arguments.settingValue));
-				return getUserManagerSetting(arguments.settingName);
+				var apiOnly = toBoolean(arguments.settingValue);
+				snapshot.allowadminaccess = NOT apiOnly;
+				snapshot.allowadminapiaccess = apiOnly;
+				break;
 			case lCase(variables.USER_PROHIBITED_ROLE_SETTING):
 				setProhibitedRoleInNeo(arguments.settingValue);
 				return getUserManagerSetting(arguments.settingName);
@@ -597,11 +670,15 @@ component output="false" {
 	}
 
 	private void function removeTestUserFromNeo(){
+		removeUserFromNeo(variables.TEST_USER);
+	}
+
+	private void function removeUserFromNeo(required string username){
 		var cfg = loadSecurityConfigMap();
 		if(NOT structKeyExists(cfg, "AuthorizedUsers") OR NOT isStruct(cfg.AuthorizedUsers))
 			return;
-		if(structKeyExists(cfg.AuthorizedUsers, variables.TEST_USER))
-			structDelete(cfg.AuthorizedUsers, variables.TEST_USER);
+		if(structKeyExists(cfg.AuthorizedUsers, arguments.username))
+			structDelete(cfg.AuthorizedUsers, arguments.username);
 		saveSecurityConfigMap(cfg);
 	}
 
@@ -737,9 +814,7 @@ component output="false" {
 	}
 
 	private void function logoutAdmin(required any admin){
-		if(isObject(arguments.admin)){
-			try { arguments.admin.logout(); } catch(any x){}
-		}
+		// No-op to preserve authenticated Admin API session across nested calls within the request
 	}
 
 	private any function getSecurityAdminApi(){
@@ -880,7 +955,10 @@ component output="false" {
 	private boolean function isApiAccessOnlyInNeo(){
 		var user = readAuthorizedUserFromNeo();
 		if(structIsEmpty(user)) return false;
-		return toBoolean(getNeoUserField(user, "allowadminapiaccess", false));
+		var roles = getNeoUserField(user, "roles", []);
+		var hasApi = isArray(roles) ? (arrayFindNoCase(roles, "coldfusion.adminapi") GT 0) : (listFindNoCase(roles, "coldfusion.adminapi") GT 0);
+		var hasAdmin = isArray(roles) ? (arrayFindNoCase(roles, "coldfusion.administrator") GT 0) : (listFindNoCase(roles, "coldfusion.administrator") GT 0);
+		return hasApi AND NOT hasAdmin;
 	}
 
 	private void function setApiAccessOnlyInNeo(required boolean present){
@@ -899,9 +977,9 @@ component output="false" {
 	private boolean function isAdminConsoleAndApiInNeo(){
 		var user = readAuthorizedUserFromNeo();
 		if(structIsEmpty(user)) return false;
-		var allowAdmin = toBoolean(getNeoUserField(user, "allowadminaccess", false));
-		var allowApi = toBoolean(getNeoUserField(user, "allowadminapiaccess", false));
-		return allowAdmin AND NOT allowApi;
+		var roles = getNeoUserField(user, "roles", []);
+		var hasAdmin = isArray(roles) ? (arrayFindNoCase(roles, "coldfusion.administrator") GT 0) : (listFindNoCase(roles, "coldfusion.administrator") GT 0);
+		return hasAdmin;
 	}
 
 	private void function setAdminConsoleAndApiInNeo(required boolean present){

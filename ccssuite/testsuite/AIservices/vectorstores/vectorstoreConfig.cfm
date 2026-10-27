@@ -2,7 +2,7 @@
 * @file  vectorstoreConfig.cfm
 * @description Full Vector Store configuration — multi-node CCS sync test
 --->
-<h2>Vector Store Configuration (full)</h2>
+<h2>Milvus Vector Store Configuration</h2>
 <p>File: vectorstoreConfig.cfm</p>
 <br>
 <cftry>

@@ -1765,4 +1765,275 @@ component output="false" {
 		}
 		return getCloudConfigThrottleBackoffFixedDelaySetting(arguments.alias);
 	}
+
+	/**
+	* Generic field definition registry for expanded Cloud Configuration services:
+	* AWS SQS, AWS SNS, AWS DynamoDB, Azure Blob, Azure Service Bus, GCP Firestore, GCP Storage, GCP PubSub.
+	*/
+	private struct function getExpandedFieldDefinitions(){
+		var defs = {};
+		defs["ccstestcloudconfigsqsapicallattempttimeout"] = { "setting": "CCSTestCloudConfigSqsApiCallAttemptTimeout", "service": "SQS", "path": "clientOverrideConfig.apiCallAttemptTimeout", "type": "string", "val1": "10s", "val2": "20s" };
+		defs["ccstestcloudconfigsqsapicalltimeout"] = { "setting": "CCSTestCloudConfigSqsApiCallTimeout", "service": "SQS", "path": "clientOverrideConfig.apiCallTimeout", "type": "string", "val1": "30s", "val2": "60s" };
+		defs["ccstestcloudconfigsqsconnectionacquisitiontimeout"] = { "setting": "CCSTestCloudConfigSqsConnectionAcquisitionTimeout", "service": "SQS", "path": "httpClientConfig.connectionAcquisitionTimeout", "type": "string", "val1": "10s", "val2": "20s" };
+		defs["ccstestcloudconfigsqsconnectionmaxidletime"] = { "setting": "CCSTestCloudConfigSqsConnectionMaxIdleTime", "service": "SQS", "path": "httpClientConfig.connectionMaxIdleTime", "type": "string", "val1": "30s", "val2": "60s" };
+		defs["ccstestcloudconfigsqsconnectiontimeout"] = { "setting": "CCSTestCloudConfigSqsConnectionTimeout", "service": "SQS", "path": "httpClientConfig.connectionTimeout", "type": "string", "val1": "10s", "val2": "20s" };
+		defs["ccstestcloudconfigsqsconnectiontimetolive"] = { "setting": "CCSTestCloudConfigSqsConnectionTimeToLive", "service": "SQS", "path": "httpClientConfig.connectionTimeToLive", "type": "string", "val1": "60s", "val2": "120s" };
+		defs["ccstestcloudconfigsqsexpectcontinueenabled"] = { "setting": "CCSTestCloudConfigSqsExpectContinueEnabled", "service": "SQS", "path": "httpClientConfig.expectContinueEnabled", "type": "boolean", "val1": "true", "val2": "false" };
+		defs["ccstestcloudconfigsqsmaxconnections"] = { "setting": "CCSTestCloudConfigSqsMaxConnections", "service": "SQS", "path": "httpClientConfig.maxConnections", "type": "number", "val1": "50", "val2": "100" };
+		defs["ccstestcloudconfigsqssockettimeout"] = { "setting": "CCSTestCloudConfigSqsSocketTimeout", "service": "SQS", "path": "httpClientConfig.socketTimeout", "type": "string", "val1": "30s", "val2": "60s" };
+		defs["ccstestcloudconfigsqsuseidleconnectionreaper"] = { "setting": "CCSTestCloudConfigSqsUseIdleConnectionReaper", "service": "SQS", "path": "httpClientConfig.useIdleConnectionReaper", "type": "boolean", "val1": "true", "val2": "false" };
+		defs["ccstestcloudconfigsqsnonproxyhosts"] = { "setting": "CCSTestCloudConfigSqsNonProxyHosts", "service": "SQS", "path": "httpClientConfig.proxyConfiguration.nonProxyHosts", "type": "array", "val1": "localhost", "val2": "127.0.0.1" };
+		defs["ccstestcloudconfigsqsntlmdomain"] = { "setting": "CCSTestCloudConfigSqsNtlmDomain", "service": "SQS", "path": "httpClientConfig.proxyConfiguration.ntlmdomain", "type": "string", "val1": "CCSTESTDOMAIN1", "val2": "CCSTESTDOMAIN2" };
+		defs["ccstestcloudconfigsqsntlmworkstation"] = { "setting": "CCSTestCloudConfigSqsNtlmWorkstation", "service": "SQS", "path": "httpClientConfig.proxyConfiguration.ntlmWorkstation", "type": "string", "val1": "CCSTESTWS1", "val2": "CCSTESTWS2" };
+		defs["ccstestcloudconfigsqsproxyusername"] = { "setting": "CCSTestCloudConfigSqsProxyUsername", "service": "SQS", "path": "httpClientConfig.proxyConfiguration.username", "type": "string", "val1": "ccsProxyUser1", "val2": "ccsProxyUser2" };
+		defs["ccstestcloudconfigsqsproxypassword"] = { "setting": "CCSTestCloudConfigSqsProxyPassword", "service": "SQS", "path": "httpClientConfig.proxyConfiguration.password", "type": "string", "val1": "ccsProxyPass1", "val2": "ccsProxyPass2" };
+		defs["ccstestcloudconfigsqsproxyendpoint"] = { "setting": "CCSTestCloudConfigSqsProxyEndpoint", "service": "SQS", "path": "httpClientConfig.proxyConfiguration.endpoint", "type": "string", "val1": "http://proxy1.ccssuite-test.local:8080", "val2": "http://proxy2.ccssuite-test.local:8080" };
+		defs["ccstestcloudconfigsqspreemptivebasicauthenabled"] = { "setting": "CCSTestCloudConfigSqsPreemptiveBasicAuthEnabled", "service": "SQS", "path": "httpClientConfig.proxyConfiguration.preemptiveBasicAuthenticationEnabled", "type": "boolean", "val1": "true", "val2": "false" };
+		defs["ccstestcloudconfigsqsnumretries"] = { "setting": "CCSTestCloudConfigSqsNumRetries", "service": "SQS", "path": "clientOverrideConfig.retryPolicy.numRetries", "type": "number", "val1": "3", "val2": "5" };
+		defs["ccstestcloudconfigsnsapicallattempttimeout"] = { "setting": "CCSTestCloudConfigSnsApiCallAttemptTimeout", "service": "SNS", "path": "clientOverrideConfig.apiCallAttemptTimeout", "type": "string", "val1": "10s", "val2": "20s" };
+		defs["ccstestcloudconfigsnsapicalltimeout"] = { "setting": "CCSTestCloudConfigSnsApiCallTimeout", "service": "SNS", "path": "clientOverrideConfig.apiCallTimeout", "type": "string", "val1": "30s", "val2": "60s" };
+		defs["ccstestcloudconfigsnsconnectionacquisitiontimeout"] = { "setting": "CCSTestCloudConfigSnsConnectionAcquisitionTimeout", "service": "SNS", "path": "httpClientConfig.connectionAcquisitionTimeout", "type": "string", "val1": "10s", "val2": "20s" };
+		defs["ccstestcloudconfigsnsconnectionmaxidletime"] = { "setting": "CCSTestCloudConfigSnsConnectionMaxIdleTime", "service": "SNS", "path": "httpClientConfig.connectionMaxIdleTime", "type": "string", "val1": "30s", "val2": "60s" };
+		defs["ccstestcloudconfigsnsconnectiontimeout"] = { "setting": "CCSTestCloudConfigSnsConnectionTimeout", "service": "SNS", "path": "httpClientConfig.connectionTimeout", "type": "string", "val1": "10s", "val2": "20s" };
+		defs["ccstestcloudconfigsnsconnectiontimetolive"] = { "setting": "CCSTestCloudConfigSnsConnectionTimeToLive", "service": "SNS", "path": "httpClientConfig.connectionTimeToLive", "type": "string", "val1": "60s", "val2": "120s" };
+		defs["ccstestcloudconfigsnsexpectcontinueenabled"] = { "setting": "CCSTestCloudConfigSnsExpectContinueEnabled", "service": "SNS", "path": "httpClientConfig.expectContinueEnabled", "type": "boolean", "val1": "true", "val2": "false" };
+		defs["ccstestcloudconfigsnsmaxconnections"] = { "setting": "CCSTestCloudConfigSnsMaxConnections", "service": "SNS", "path": "httpClientConfig.maxConnections", "type": "number", "val1": "50", "val2": "100" };
+		defs["ccstestcloudconfigsnssockettimeout"] = { "setting": "CCSTestCloudConfigSnsSocketTimeout", "service": "SNS", "path": "httpClientConfig.socketTimeout", "type": "string", "val1": "30s", "val2": "60s" };
+		defs["ccstestcloudconfigsnsuseidleconnectionreaper"] = { "setting": "CCSTestCloudConfigSnsUseIdleConnectionReaper", "service": "SNS", "path": "httpClientConfig.useIdleConnectionReaper", "type": "boolean", "val1": "true", "val2": "false" };
+		defs["ccstestcloudconfigsnsnonproxyhosts"] = { "setting": "CCSTestCloudConfigSnsNonProxyHosts", "service": "SNS", "path": "httpClientConfig.proxyConfiguration.nonProxyHosts", "type": "array", "val1": "localhost", "val2": "127.0.0.1" };
+		defs["ccstestcloudconfigsnsntlmdomain"] = { "setting": "CCSTestCloudConfigSnsNtlmDomain", "service": "SNS", "path": "httpClientConfig.proxyConfiguration.ntlmdomain", "type": "string", "val1": "CCSTESTDOMAIN1", "val2": "CCSTESTDOMAIN2" };
+		defs["ccstestcloudconfigsnsntlmworkstation"] = { "setting": "CCSTestCloudConfigSnsNtlmWorkstation", "service": "SNS", "path": "httpClientConfig.proxyConfiguration.ntlmWorkstation", "type": "string", "val1": "CCSTESTWS1", "val2": "CCSTESTWS2" };
+		defs["ccstestcloudconfigsnsproxyusername"] = { "setting": "CCSTestCloudConfigSnsProxyUsername", "service": "SNS", "path": "httpClientConfig.proxyConfiguration.username", "type": "string", "val1": "ccsProxyUser1", "val2": "ccsProxyUser2" };
+		defs["ccstestcloudconfigsnsproxypassword"] = { "setting": "CCSTestCloudConfigSnsProxyPassword", "service": "SNS", "path": "httpClientConfig.proxyConfiguration.password", "type": "string", "val1": "ccsProxyPass1", "val2": "ccsProxyPass2" };
+		defs["ccstestcloudconfigsnsproxyendpoint"] = { "setting": "CCSTestCloudConfigSnsProxyEndpoint", "service": "SNS", "path": "httpClientConfig.proxyConfiguration.endpoint", "type": "string", "val1": "http://proxy1.ccssuite-test.local:8080", "val2": "http://proxy2.ccssuite-test.local:8080" };
+		defs["ccstestcloudconfigsnspreemptivebasicauthenabled"] = { "setting": "CCSTestCloudConfigSnsPreemptiveBasicAuthEnabled", "service": "SNS", "path": "httpClientConfig.proxyConfiguration.preemptiveBasicAuthenticationEnabled", "type": "boolean", "val1": "true", "val2": "false" };
+		defs["ccstestcloudconfigsnsnumretries"] = { "setting": "CCSTestCloudConfigSnsNumRetries", "service": "SNS", "path": "clientOverrideConfig.retryPolicy.numRetries", "type": "number", "val1": "3", "val2": "5" };
+		defs["ccstestcloudconfigdynamoapicallattempttimeout"] = { "setting": "CCSTestCloudConfigDynamoApiCallAttemptTimeout", "service": "DYNAMODB", "path": "clientOverrideConfig.apiCallAttemptTimeout", "type": "string", "val1": "10s", "val2": "20s" };
+		defs["ccstestcloudconfigdynamoapicalltimeout"] = { "setting": "CCSTestCloudConfigDynamoApiCallTimeout", "service": "DYNAMODB", "path": "clientOverrideConfig.apiCallTimeout", "type": "string", "val1": "30s", "val2": "60s" };
+		defs["ccstestcloudconfigdynamoconnectionacquisitiontimeout"] = { "setting": "CCSTestCloudConfigDynamoConnectionAcquisitionTimeout", "service": "DYNAMODB", "path": "httpClientConfig.connectionAcquisitionTimeout", "type": "string", "val1": "10s", "val2": "20s" };
+		defs["ccstestcloudconfigdynamoconnectionmaxidletime"] = { "setting": "CCSTestCloudConfigDynamoConnectionMaxIdleTime", "service": "DYNAMODB", "path": "httpClientConfig.connectionMaxIdleTime", "type": "string", "val1": "30s", "val2": "60s" };
+		defs["ccstestcloudconfigdynamoconnectiontimeout"] = { "setting": "CCSTestCloudConfigDynamoConnectionTimeout", "service": "DYNAMODB", "path": "httpClientConfig.connectionTimeout", "type": "string", "val1": "10s", "val2": "20s" };
+		defs["ccstestcloudconfigdynamoconnectiontimetolive"] = { "setting": "CCSTestCloudConfigDynamoConnectionTimeToLive", "service": "DYNAMODB", "path": "httpClientConfig.connectionTimeToLive", "type": "string", "val1": "60s", "val2": "120s" };
+		defs["ccstestcloudconfigdynamoexpectcontinueenabled"] = { "setting": "CCSTestCloudConfigDynamoExpectContinueEnabled", "service": "DYNAMODB", "path": "httpClientConfig.expectContinueEnabled", "type": "boolean", "val1": "true", "val2": "false" };
+		defs["ccstestcloudconfigdynamomaxconnections"] = { "setting": "CCSTestCloudConfigDynamoMaxConnections", "service": "DYNAMODB", "path": "httpClientConfig.maxConnections", "type": "number", "val1": "50", "val2": "100" };
+		defs["ccstestcloudconfigdynamosockettimeout"] = { "setting": "CCSTestCloudConfigDynamoSocketTimeout", "service": "DYNAMODB", "path": "httpClientConfig.socketTimeout", "type": "string", "val1": "30s", "val2": "60s" };
+		defs["ccstestcloudconfigdynamouseidleconnectionreaper"] = { "setting": "CCSTestCloudConfigDynamoUseIdleConnectionReaper", "service": "DYNAMODB", "path": "httpClientConfig.useIdleConnectionReaper", "type": "boolean", "val1": "true", "val2": "false" };
+		defs["ccstestcloudconfigdynamononproxyhosts"] = { "setting": "CCSTestCloudConfigDynamoNonProxyHosts", "service": "DYNAMODB", "path": "httpClientConfig.proxyConfiguration.nonProxyHosts", "type": "array", "val1": "localhost", "val2": "127.0.0.1" };
+		defs["ccstestcloudconfigdynamontlmdomain"] = { "setting": "CCSTestCloudConfigDynamoNtlmDomain", "service": "DYNAMODB", "path": "httpClientConfig.proxyConfiguration.ntlmdomain", "type": "string", "val1": "CCSTESTDOMAIN1", "val2": "CCSTESTDOMAIN2" };
+		defs["ccstestcloudconfigdynamontlmworkstation"] = { "setting": "CCSTestCloudConfigDynamoNtlmWorkstation", "service": "DYNAMODB", "path": "httpClientConfig.proxyConfiguration.ntlmWorkstation", "type": "string", "val1": "CCSTESTWS1", "val2": "CCSTESTWS2" };
+		defs["ccstestcloudconfigdynamoproxyusername"] = { "setting": "CCSTestCloudConfigDynamoProxyUsername", "service": "DYNAMODB", "path": "httpClientConfig.proxyConfiguration.username", "type": "string", "val1": "ccsProxyUser1", "val2": "ccsProxyUser2" };
+		defs["ccstestcloudconfigdynamoproxypassword"] = { "setting": "CCSTestCloudConfigDynamoProxyPassword", "service": "DYNAMODB", "path": "httpClientConfig.proxyConfiguration.password", "type": "string", "val1": "ccsProxyPass1", "val2": "ccsProxyPass2" };
+		defs["ccstestcloudconfigdynamoproxyendpoint"] = { "setting": "CCSTestCloudConfigDynamoProxyEndpoint", "service": "DYNAMODB", "path": "httpClientConfig.proxyConfiguration.endpoint", "type": "string", "val1": "http://proxy1.ccssuite-test.local:8080", "val2": "http://proxy2.ccssuite-test.local:8080" };
+		defs["ccstestcloudconfigdynamopreemptivebasicauthenabled"] = { "setting": "CCSTestCloudConfigDynamoPreemptiveBasicAuthEnabled", "service": "DYNAMODB", "path": "httpClientConfig.proxyConfiguration.preemptiveBasicAuthenticationEnabled", "type": "boolean", "val1": "true", "val2": "false" };
+		defs["ccstestcloudconfigdynamonumretries"] = { "setting": "CCSTestCloudConfigDynamoNumRetries", "service": "DYNAMODB", "path": "clientOverrideConfig.retryPolicy.numRetries", "type": "number", "val1": "3", "val2": "5" };
+		defs["ccstestcloudconfigblobconcreqcount"] = { "setting": "CCSTestCloudConfigBlobConcReqCount", "service": "AZURE_BLOB", "path": "options.concurrentRequestCount", "type": "number", "val1": "5", "val2": "10" };
+		defs["ccstestcloudconfigblobsingleblobputthresholdinbytes"] = { "setting": "CCSTestCloudConfigBlobSingleBlobPutThresholdInBytes", "service": "AZURE_BLOB", "path": "options.singleBlobPutThresholdInBytes", "type": "number", "val1": "2097152", "val2": "4194304" };
+		defs["ccstestcloudconfigblobtimeoutintervalinms"] = { "setting": "CCSTestCloudConfigBlobTimeoutIntervalInMs", "service": "AZURE_BLOB", "path": "options.timeoutIntervalInMs", "type": "number", "val1": "1000", "val2": "2000" };
+		defs["ccstestcloudconfigblobmaximumexecutiontimeinms"] = { "setting": "CCSTestCloudConfigBlobMaximumExecutionTimeInMs", "service": "AZURE_BLOB", "path": "options.maximumExecutionTimeInMs", "type": "number", "val1": "3000", "val2": "5000" };
+		defs["ccstestcloudconfigbloblocationmode"] = { "setting": "CCSTestCloudConfigBlobLocationMode", "service": "AZURE_BLOB", "path": "options.locationMode", "type": "string", "val1": "PRIMARY_ONLY", "val2": "SECONDARY_ONLY" };
+		defs["ccstestcloudconfigblobusetranscontentmd5"] = { "setting": "CCSTestCloudConfigBlobUseTransContentMD5", "service": "AZURE_BLOB", "path": "options.useTransactionalContentMD5", "type": "boolean", "val1": "true", "val2": "false" };
+		defs["ccstestcloudconfigblobdisablecontentmd5validation"] = { "setting": "CCSTestCloudConfigBlobDisableContentMD5Validation", "service": "AZURE_BLOB", "path": "options.disableContentMD5Validation", "type": "boolean", "val1": "true", "val2": "false" };
+		defs["ccstestcloudconfigblobstoreblobcontentmd5"] = { "setting": "CCSTestCloudConfigBlobStoreBlobContentMD5", "service": "AZURE_BLOB", "path": "options.storeBlobContentMD5", "type": "boolean", "val1": "true", "val2": "false" };
+		defs["ccstestcloudconfigblobabsorbconditionalerrorsonretry"] = { "setting": "CCSTestCloudConfigBlobAbsorbConditionalErrorsOnRetry", "service": "AZURE_BLOB", "path": "options.absorbConditionalErrorsOnRetry", "type": "boolean", "val1": "true", "val2": "false" };
+		defs["ccstestcloudconfigblobskipetaglocking"] = { "setting": "CCSTestCloudConfigBlobSkipEtagLocking", "service": "AZURE_BLOB", "path": "options.skipEtagLocking", "type": "boolean", "val1": "true", "val2": "false" };
+		defs["ccstestcloudconfigblobretrypolicytype"] = { "setting": "CCSTestCloudConfigBlobRetryPolicyType", "service": "AZURE_BLOB", "path": "options.retryPolicyFactory.retryPolicyType", "type": "string", "val1": "LINEAR", "val2": "EXPONENTIAL" };
+		defs["ccstestcloudconfigblobdeltabackoffintervalinms"] = { "setting": "CCSTestCloudConfigBlobDeltaBackoffIntervalInMs", "service": "AZURE_BLOB", "path": "options.retryPolicyFactory.deltaBackoffIntervalInMs", "type": "number", "val1": "100", "val2": "200" };
+		defs["ccstestcloudconfigblobmaximumattempts"] = { "setting": "CCSTestCloudConfigBlobMaximumAttempts", "service": "AZURE_BLOB", "path": "options.retryPolicyFactory.maximumAttempts", "type": "number", "val1": "3", "val2": "5" };
+		defs["ccstestcloudconfigblobresolvedminbackoff"] = { "setting": "CCSTestCloudConfigBlobResolvedMinBackoff", "service": "AZURE_BLOB", "path": "options.retryPolicyFactory.resolvedMinBackoff", "type": "number", "val1": "100", "val2": "200" };
+		defs["ccstestcloudconfigblobresolvedmaxbackoff"] = { "setting": "CCSTestCloudConfigBlobResolvedMaxBackoff", "service": "AZURE_BLOB", "path": "options.retryPolicyFactory.resolvedMaxBackoff", "type": "number", "val1": "1000", "val2": "2000" };
+		defs["ccstestcloudconfigblobenablelogging"] = { "setting": "CCSTestCloudConfigBlobEnableLogging", "service": "AZURE_BLOB", "path": "context.enableLogging", "type": "boolean", "val1": "true", "val2": "false" };
+		defs["ccstestcloudconfigsboptimeout"] = { "setting": "CCSTestCloudConfigSbOpTimeout", "service": "SERVICE_BUS", "path": "operationTimeout", "type": "string", "val1": "10s", "val2": "20s" };
+		defs["ccstestcloudconfigsbretrypolicytype"] = { "setting": "CCSTestCloudConfigSbRetryPolicyType", "service": "SERVICE_BUS", "path": "retryPolicy", "type": "string", "val1": "NoRetry", "val2": "Default" };
+		defs["ccstestcloudconfigfshost"] = { "setting": "CCSTestCloudConfigFsHost", "service": "FIRESTORE", "path": "host", "type": "string", "val1": "firestore.googleapis.com:443", "val2": "firestore2.googleapis.com:443" };
+		defs["ccstestcloudconfigfsdatabaseid"] = { "setting": "CCSTestCloudConfigFsDatabaseId", "service": "FIRESTORE", "path": "databaseId", "type": "string", "val1": "default", "val2": "customdb" };
+		defs["ccstestcloudconfigfsemulatorhost"] = { "setting": "CCSTestCloudConfigFsEmulatorHost", "service": "FIRESTORE", "path": "emulatorHost", "type": "string", "val1": "localhost:8080", "val2": "localhost:8081" };
+		defs["ccstestcloudconfigfsinitialretrydelay"] = { "setting": "CCSTestCloudConfigFsInitialRetryDelay", "service": "FIRESTORE", "path": "retrySettings.initialRetryDelay", "type": "string", "val1": "1s", "val2": "2s" };
+		defs["ccstestcloudconfigfsmaxretrydelay"] = { "setting": "CCSTestCloudConfigFsMaxRetryDelay", "service": "FIRESTORE", "path": "retrySettings.maxRetryDelay", "type": "string", "val1": "32s", "val2": "64s" };
+		defs["ccstestcloudconfigfsretrydelaymultiplier"] = { "setting": "CCSTestCloudConfigFsRetryDelayMultiplier", "service": "FIRESTORE", "path": "retrySettings.retryDelayMultiplier", "type": "number", "val1": "2.0", "val2": "3.0" };
+		defs["ccstestcloudconfigfsinitialrpctimeout"] = { "setting": "CCSTestCloudConfigFsInitialRpcTimeout", "service": "FIRESTORE", "path": "retrySettings.initialRpcTimeout", "type": "string", "val1": "50s", "val2": "60s" };
+		defs["ccstestcloudconfigfsmaxrpctimeout"] = { "setting": "CCSTestCloudConfigFsMaxRpcTimeout", "service": "FIRESTORE", "path": "retrySettings.maxRpcTimeout", "type": "string", "val1": "50s", "val2": "60s" };
+		defs["ccstestcloudconfigfsrpctimeoutmultiplier"] = { "setting": "CCSTestCloudConfigFsRpcTimeoutMultiplier", "service": "FIRESTORE", "path": "retrySettings.rpcTimeoutMultiplier", "type": "number", "val1": "1.0", "val2": "1.5" };
+		defs["ccstestcloudconfigfsmaxattempts"] = { "setting": "CCSTestCloudConfigFsMaxAttempts", "service": "FIRESTORE", "path": "retrySettings.maxAttempts", "type": "number", "val1": "6", "val2": "10" };
+		defs["ccstestcloudconfigfstotaltimeout"] = { "setting": "CCSTestCloudConfigFsTotalTimeout", "service": "FIRESTORE", "path": "retrySettings.totalTimeout", "type": "string", "val1": "50s", "val2": "100s" };
+		defs["ccstestcloudconfigfskeepalivetime"] = { "setting": "CCSTestCloudConfigFsKeepAliveTime", "service": "FIRESTORE", "path": "channelProvider.keepAliveTime", "type": "string", "val1": "10s", "val2": "20s" };
+		defs["ccstestcloudconfigfskeepalivetimeout"] = { "setting": "CCSTestCloudConfigFsKeepAliveTimeout", "service": "FIRESTORE", "path": "channelProvider.keepAliveTimeout", "type": "string", "val1": "20s", "val2": "30s" };
+		defs["ccstestcloudconfigfskeepalivewithoutcalls"] = { "setting": "CCSTestCloudConfigFsKeepAliveWithoutCalls", "service": "FIRESTORE", "path": "channelProvider.keepAliveWithoutCalls", "type": "boolean", "val1": "true", "val2": "false" };
+		defs["ccstestcloudconfigfsmaxinboundmessagesize"] = { "setting": "CCSTestCloudConfigFsMaxInboundMessageSize", "service": "FIRESTORE", "path": "channelProvider.maxInboundMessageSize", "type": "number", "val1": "4194304", "val2": "8388608" };
+		defs["ccstestcloudconfigstoragehost"] = { "setting": "CCSTestCloudConfigStorageHost", "service": "STORAGE", "path": "host", "type": "string", "val1": "https://storage.googleapis.com", "val2": "https://storage2.googleapis.com" };
+		defs["ccstestcloudconfigstorageconnecttimeout"] = { "setting": "CCSTestCloudConfigStorageConnectTimeout", "service": "STORAGE", "path": "transportOptions.connectTimeout", "type": "number", "val1": "5000", "val2": "10000" };
+		defs["ccstestcloudconfigstoragereadtimeout"] = { "setting": "CCSTestCloudConfigStorageReadTimeout", "service": "STORAGE", "path": "transportOptions.readTimeout", "type": "number", "val1": "10000", "val2": "20000" };
+		defs["ccstestcloudconfigstorageinitialretrydelay"] = { "setting": "CCSTestCloudConfigStorageInitialRetryDelay", "service": "STORAGE", "path": "retrySettings.initialRetryDelay", "type": "string", "val1": "1s", "val2": "2s" };
+		defs["ccstestcloudconfigstoragemaxretrydelay"] = { "setting": "CCSTestCloudConfigStorageMaxRetryDelay", "service": "STORAGE", "path": "retrySettings.maxRetryDelay", "type": "string", "val1": "32s", "val2": "64s" };
+		defs["ccstestcloudconfigstorageretrydelaymultiplier"] = { "setting": "CCSTestCloudConfigStorageRetryDelayMultiplier", "service": "STORAGE", "path": "retrySettings.retryDelayMultiplier", "type": "number", "val1": "2.0", "val2": "3.0" };
+		defs["ccstestcloudconfigstorageinitialrpctimeout"] = { "setting": "CCSTestCloudConfigStorageInitialRpcTimeout", "service": "STORAGE", "path": "retrySettings.initialRpcTimeout", "type": "string", "val1": "50s", "val2": "60s" };
+		defs["ccstestcloudconfigstoragemaxrpctimeout"] = { "setting": "CCSTestCloudConfigStorageMaxRpcTimeout", "service": "STORAGE", "path": "retrySettings.maxRpcTimeout", "type": "string", "val1": "50s", "val2": "60s" };
+		defs["ccstestcloudconfigstoragerpctimeoutmultiplier"] = { "setting": "CCSTestCloudConfigStorageRpcTimeoutMultiplier", "service": "STORAGE", "path": "retrySettings.rpcTimeoutMultiplier", "type": "number", "val1": "1.0", "val2": "1.5" };
+		defs["ccstestcloudconfigstoragemaxattempts"] = { "setting": "CCSTestCloudConfigStorageMaxAttempts", "service": "STORAGE", "path": "retrySettings.maxAttempts", "type": "number", "val1": "6", "val2": "10" };
+		defs["ccstestcloudconfigstoragetotaltimeout"] = { "setting": "CCSTestCloudConfigStorageTotalTimeout", "service": "STORAGE", "path": "retrySettings.totalTimeout", "type": "string", "val1": "50s", "val2": "100s" };
+		defs["ccstestcloudconfigpubsubpublisherendpoint"] = { "setting": "CCSTestCloudConfigPubsubPublisherEndpoint", "service": "PUBSUB", "path": "publisherSettings.endpoint", "type": "string", "val1": "pubsub.googleapis.com:443", "val2": "pubsub2.googleapis.com:443" };
+		defs["ccstestcloudconfigpubsubiscompressionenabled"] = { "setting": "CCSTestCloudConfigPubsubIsCompressionEnabled", "service": "PUBSUB", "path": "publisherSettings.enableCompression", "type": "boolean", "val1": "true", "val2": "false" };
+		defs["ccstestcloudconfigpubsubcompressionbytesthreshold"] = { "setting": "CCSTestCloudConfigPubsubCompressionBytesThreshold", "service": "PUBSUB", "path": "publisherSettings.compressionBytesThreshold", "type": "number", "val1": "1024", "val2": "2048" };
+		defs["ccstestcloudconfigpubsubismessageorderingenabled"] = { "setting": "CCSTestCloudConfigPubsubIsMessageOrderingEnabled", "service": "PUBSUB", "path": "publisherSettings.enableMessageOrdering", "type": "boolean", "val1": "true", "val2": "false" };
+		defs["ccstestcloudconfigpubsubexecutorproviderthreadcount"] = { "setting": "CCSTestCloudConfigPubsubExecutorProviderThreadCount", "service": "PUBSUB", "path": "publisherSettings.executorProvider.threadCount", "type": "number", "val1": "4", "val2": "8" };
+		defs["ccstestcloudconfigpubsubexecutorproviderthreadnameprefix"] = { "setting": "CCSTestCloudConfigPubsubExecutorProviderThreadNamePrefix", "service": "PUBSUB", "path": "publisherSettings.executorProvider.threadNamePrefix", "type": "string", "val1": "pub-exec", "val2": "pub-worker" };
+		defs["ccstestcloudconfigpubsubisbatchingsettingsenabled"] = { "setting": "CCSTestCloudConfigPubsubIsBatchingSettingsEnabled", "service": "PUBSUB", "path": "publisherSettings.batchingSettings.enable", "type": "boolean", "val1": "true", "val2": "false" };
+		defs["ccstestcloudconfigpubsubbatchingsettingsdelaythreshold"] = { "setting": "CCSTestCloudConfigPubsubBatchingSettingsDelayThreshold", "service": "PUBSUB", "path": "publisherSettings.batchingSettings.delayThreshold", "type": "string", "val1": "10s", "val2": "20s" };
+		defs["ccstestcloudconfigpubsubbatchingsettingselementcountthreshold"] = { "setting": "CCSTestCloudConfigPubsubBatchingSettingsElementCountThreshold", "service": "PUBSUB", "path": "publisherSettings.batchingSettings.elementCountThreshold", "type": "number", "val1": "100", "val2": "200" };
+		defs["ccstestcloudconfigpubsubbatchingsettingsrequestbytethreshold"] = { "setting": "CCSTestCloudConfigPubsubBatchingSettingsRequestByteThreshold", "service": "PUBSUB", "path": "publisherSettings.batchingSettings.requestByteThreshold", "type": "number", "val1": "1024", "val2": "2048" };
+		defs["ccstestcloudconfigpubsubflowcontrolsettingslimitexceededbehavior"] = { "setting": "CCSTestCloudConfigPubsubFlowControlSettingsLimitExceededBehavior", "service": "PUBSUB", "path": "publisherSettings.batchingSettings.flowControlSettings.limitExceededBehavior", "type": "string", "val1": "Ignore", "val2": "Block" };
+		defs["ccstestcloudconfigpubsubflowcontrolsettingsmaxoutstandingelementcount"] = { "setting": "CCSTestCloudConfigPubsubFlowControlSettingsMaxOutstandingElementCount", "service": "PUBSUB", "path": "publisherSettings.batchingSettings.flowControlSettings.maxOutstandingElementCount", "type": "number", "val1": "1000", "val2": "2000" };
+		defs["ccstestcloudconfigpubsubflowcontrolsettingsmaxoutstandingrequestbytes"] = { "setting": "CCSTestCloudConfigPubsubFlowControlSettingsMaxOutstandingRequestBytes", "service": "PUBSUB", "path": "publisherSettings.batchingSettings.flowControlSettings.maxOutstandingRequestBytes", "type": "number", "val1": "10000", "val2": "20000" };
+		defs["ccstestcloudconfigpubsubinitialretrydelay"] = { "setting": "CCSTestCloudConfigPubsubInitialRetryDelay", "service": "PUBSUB", "path": "publisherSettings.retrySettings.initialRetryDelay", "type": "string", "val1": "1s", "val2": "2s" };
+		defs["ccstestcloudconfigpubsubmaxretrydelay"] = { "setting": "CCSTestCloudConfigPubsubMaxRetryDelay", "service": "PUBSUB", "path": "publisherSettings.retrySettings.maxRetryDelay", "type": "string", "val1": "32s", "val2": "64s" };
+		defs["ccstestcloudconfigpubsubretrydelaymultiplier"] = { "setting": "CCSTestCloudConfigPubsubRetryDelayMultiplier", "service": "PUBSUB", "path": "publisherSettings.retrySettings.retryDelayMultiplier", "type": "number", "val1": "2.0", "val2": "3.0" };
+		defs["ccstestcloudconfigpubsubinitialrpctimeout"] = { "setting": "CCSTestCloudConfigPubsubInitialRpcTimeout", "service": "PUBSUB", "path": "publisherSettings.retrySettings.initialRpcTimeout", "type": "string", "val1": "50s", "val2": "60s" };
+		defs["ccstestcloudconfigpubsubmaxrpctimeout"] = { "setting": "CCSTestCloudConfigPubsubMaxRpcTimeout", "service": "PUBSUB", "path": "publisherSettings.retrySettings.maxRpcTimeout", "type": "string", "val1": "50s", "val2": "60s" };
+		defs["ccstestcloudconfigpubsubrpctimeoutmultiplier"] = { "setting": "CCSTestCloudConfigPubsubRpcTimeoutMultiplier", "service": "PUBSUB", "path": "publisherSettings.retrySettings.rpcTimeoutMultiplier", "type": "number", "val1": "1.0", "val2": "1.5" };
+		defs["ccstestcloudconfigpubsubmaxattempts"] = { "setting": "CCSTestCloudConfigPubsubMaxAttempts", "service": "PUBSUB", "path": "publisherSettings.retrySettings.maxAttempts", "type": "number", "val1": "6", "val2": "10" };
+		defs["ccstestcloudconfigpubsubtotaltimeout"] = { "setting": "CCSTestCloudConfigPubsubTotalTimeout", "service": "PUBSUB", "path": "publisherSettings.retrySettings.totalTimeout", "type": "string", "val1": "50s", "val2": "100s" };
+		defs["ccstestcloudconfigpubsubsubscriberendpoint"] = { "setting": "CCSTestCloudConfigPubsubSubscriberEndpoint", "service": "PUBSUB", "path": "subscriberSettings.endpoint", "type": "string", "val1": "pubsub.googleapis.com:443", "val2": "pubsub2.googleapis.com:443" };
+		defs["ccstestcloudconfigpubsubparallelpullcount"] = { "setting": "CCSTestCloudConfigPubsubParallelPullCount", "service": "PUBSUB", "path": "subscriberSettings.parallelPullCount", "type": "number", "val1": "2", "val2": "4" };
+		defs["ccstestcloudconfigpubsubsubexecutorproviderthreadcount"] = { "setting": "CCSTestCloudConfigPubsubSubExecutorProviderThreadCount", "service": "PUBSUB", "path": "subscriberSettings.executorProvider.threadCount", "type": "number", "val1": "4", "val2": "8" };
+		defs["ccstestcloudconfigpubsubsubexecutorproviderthreadnameprefix"] = { "setting": "CCSTestCloudConfigPubsubSubExecutorProviderThreadNamePrefix", "service": "PUBSUB", "path": "subscriberSettings.executorProvider.threadNamePrefix", "type": "string", "val1": "sub-exec", "val2": "sub-worker" };
+		defs["ccstestcloudconfigpubsubsubsystemexecutorproviderthreadcount"] = { "setting": "CCSTestCloudConfigPubsubSubSystemExecutorProviderThreadCount", "service": "PUBSUB", "path": "subscriberSettings.systemExecutorProvider.threadCount", "type": "number", "val1": "2", "val2": "4" };
+		defs["ccstestcloudconfigpubsubsubsystemexecutorproviderthreadnameprefix"] = { "setting": "CCSTestCloudConfigPubsubSubSystemExecutorProviderThreadNamePrefix", "service": "PUBSUB", "path": "subscriberSettings.systemExecutorProvider.threadNamePrefix", "type": "string", "val1": "sys-exec", "val2": "sys-worker" };
+		defs["ccstestcloudconfigpubsubmaxackextensionperiod"] = { "setting": "CCSTestCloudConfigPubsubMaxAckExtensionPeriod", "service": "PUBSUB", "path": "subscriberSettings.maxAckExtensionPeriod", "type": "string", "val1": "600s", "val2": "1200s" };
+		defs["ccstestcloudconfigpubsubmindurationperackextensionperiod"] = { "setting": "CCSTestCloudConfigPubsubMinDurationPerAckExtensionPeriod", "service": "PUBSUB", "path": "subscriberSettings.minDurationPerAckExtensionPeriod", "type": "string", "val1": "10s", "val2": "20s" };
+		defs["ccstestcloudconfigpubsubmaxdurationperackextensionperiod"] = { "setting": "CCSTestCloudConfigPubsubMaxDurationPerAckExtensionPeriod", "service": "PUBSUB", "path": "subscriberSettings.maxDurationPerAckExtensionPeriod", "type": "string", "val1": "60s", "val2": "120s" };
+		defs["ccstestcloudconfigpubsubsubflowcontrolsettingslimitexceededbehavior"] = { "setting": "CCSTestCloudConfigPubsubSubFlowControlSettingsLimitExceededBehavior", "service": "PUBSUB", "path": "subscriberSettings.flowControlSettings.limitExceededBehavior", "type": "string", "val1": "Block", "val2": "Ignore" };
+		defs["ccstestcloudconfigpubsubsubflowcontrolsettingsmaxoutstandingelementcount"] = { "setting": "CCSTestCloudConfigPubsubSubFlowControlSettingsMaxOutstandingElementCount", "service": "PUBSUB", "path": "subscriberSettings.flowControlSettings.maxOutstandingElementCount", "type": "number", "val1": "500", "val2": "1000" };
+		defs["ccstestcloudconfigpubsubsubflowcontrolsettingsmaxoutstandingrequestbytes"] = { "setting": "CCSTestCloudConfigPubsubSubFlowControlSettingsMaxOutstandingRequestBytes", "service": "PUBSUB", "path": "subscriberSettings.flowControlSettings.maxOutstandingRequestBytes", "type": "number", "val1": "50000", "val2": "100000" };
+		defs["ccstestcloudconfigpubsubuselegacyflowcontrol"] = { "setting": "CCSTestCloudConfigPubsubUseLegacyFlowControl", "service": "PUBSUB", "path": "subscriberSettings.useLegacyFlowControl", "type": "boolean", "val1": "true", "val2": "false" };
+		return defs;
+	}
+
+	public boolean function hasFieldDefinition(required string settingName){
+		return structKeyExists(getExpandedFieldDefinitions(), lCase(trim(arguments.settingName)));
+	}
+
+	public struct function getFieldDefinition(required string settingName){
+		var defs = getExpandedFieldDefinitions();
+		var key = lCase(trim(arguments.settingName));
+		return structKeyExists(defs, key) ? defs[key] : {};
+	}
+
+	public string function getPresetValue(required string settingName, required any currentValue){
+		var def = getFieldDefinition(arguments.settingName);
+		if(structIsEmpty(def))
+			return "";
+		var cur = trim("" & arguments.currentValue);
+		return (cur EQ def.val1) ? def.val2 : def.val1;
+	}
+
+	public string function getGenericCloudSetting(required string settingName){
+		var def = getFieldDefinition(arguments.settingName);
+		if(structIsEmpty(def))
+			return "";
+		var runtime = getRuntime();
+		try {
+			var config = runtime.api.getServiceConfig(arguments.settingName);
+			var cur = config;
+			var parts = listToArray(def.path, ".");
+			for(var p in parts){
+				if(NOT isStruct(cur) OR NOT structKeyExists(cur, p))
+					return "";
+				cur = cur[p];
+			}
+			if(def.type == "boolean")
+				return cur ? "true" : "false";
+			if(def.type == "array")
+				return (isArray(cur) AND arrayLen(cur)) ? trim("" & cur[1]) : "";
+			return trim("" & cur);
+		}
+		catch(any e){
+			if(findNoCase("does not exist", e.message) OR findNoCase("not found", e.message))
+				return "";
+			rethrow;
+		}
+		finally {
+			runtime.adminUtil.logout(runtime.admin);
+		}
+	}
+
+	public string function setGenericCloudSetting(required string settingName, required any settingValue){
+		var def = getFieldDefinition(arguments.settingName);
+		if(structIsEmpty(def))
+			return "";
+		var value = trim("" & arguments.settingValue);
+		var runtime = getRuntime();
+		try {
+			deleteServiceConfigIfExists(runtime, arguments.settingName);
+			if(len(value)){
+				var payload = {
+					"alias" = arguments.settingName,
+					"serviceName" = def.service
+				};
+				if(def.service == "AZURE_BLOB"){
+					payload["options"] = {
+						"locationMode" = "PRIMARY_ONLY",
+						"retryPolicyFactory" = {
+							"retryPolicyType" = "LINEAR",
+							"deltaBackoffIntervalInMs" = 100,
+							"maximumAttempts" = 3
+						}
+					};
+				}
+				else if(def.service == "FIRESTORE"){
+					payload["host"] = "firestore.googleapis.com:443";
+				}
+				else if(def.service == "STORAGE"){
+					payload["host"] = "https://storage.googleapis.com";
+					payload["storageRetryStrategy"] = "DEFAULT";
+				}
+				else if(def.service == "PUBSUB"){
+					payload["subscriberSettings"] = {
+						"maxAckExtensionPeriod" = "600s",
+						"minDurationPerAckExtensionPeriod" = "10s",
+						"maxDurationPerAckExtensionPeriod" = "60s",
+						"flowControlSettings" = {
+							"limitExceededBehavior" = "Block",
+							"maxOutstandingElementCount" = 500,
+							"maxOutstandingRequestBytes" = 50000
+						}
+					};
+					if(findNoCase("batchingSettings", def.path) OR findNoCase("flowControlSettings", def.path)){
+						payload["publisherSettings"] = {
+							"batchingSettings" = {
+								"flowControlSettings" = {
+									"limitExceededBehavior" = "Ignore",
+									"maxOutstandingElementCount" = 1000,
+									"maxOutstandingRequestBytes" = 10000
+								}
+							}
+						};
+					}
+				}
+
+				var parts = listToArray(def.path, ".");
+				var cur = payload;
+				for(var i = 1; i < arrayLen(parts); i++){
+					var p = parts[i];
+					if(NOT structKeyExists(cur, p) OR NOT isStruct(cur[p]))
+						cur[p] = {};
+					cur = cur[p];
+				}
+				var lastKey = parts[arrayLen(parts)];
+				if(def.type == "boolean")
+					cur[lastKey] = (listFindNoCase("true,yes,1", value) GT 0);
+				else if(def.type == "number")
+					cur[lastKey] = val(value);
+				else if(def.type == "array")
+					cur[lastKey] = [value];
+				else
+					cur[lastKey] = value;
+
+				runtime.api.addServiceConfig(payload);
+			}
+		}
+		finally {
+			runtime.adminUtil.logout(runtime.admin);
+		}
+		return getGenericCloudSetting(arguments.settingName);
+	}
+
 }

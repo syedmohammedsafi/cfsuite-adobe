@@ -12,6 +12,10 @@
 		<li><a href="webServiceProxyPort.cfm">Add/Edit ColdFusion Web Service - Proxy Port</a> — create, verify sync across nodes, remove</li>
 		<li><a href="webServiceProxyUsername.cfm">Add/Edit ColdFusion Web Service - Proxy Username</a> — create, verify sync across nodes, remove</li>
 		<li><a href="webServiceProxyPassword.cfm">Add/Edit ColdFusion Web Service - Proxy Password</a> — create, verify sync across nodes, remove</li>
+		<li><a href="webServiceUsername.cfm">Add/Edit ColdFusion Web Service - Username (wsusername)</a> — create, verify sync across nodes, remove</li>
+		<li><a href="webServicePassword.cfm">Add/Edit ColdFusion Web Service - Password (wspassword)</a> — create, verify sync across nodes, remove</li>
+		<li><a href="webServiceDomain.cfm">Add/Edit ColdFusion Web Service - Domain (wsdomain)</a> — create, verify sync across nodes, remove</li>
+		<li><a href="webServiceWorkstation.cfm">Add/Edit ColdFusion Web Service - Workstation (wsworkstation)</a> — create, verify sync across nodes, remove</li>
 	</ul>
 	<p><em>Note — Web Service Version is single-node:</em> <code>setWSEngineVersion()</code> applies
 	the new value locally, then throws a genuine <code>java.lang.ClassCastException</code> inside
@@ -60,5 +64,5 @@
 		genuine none-&gt;basic / 0-&gt;30 transition an admin would actually see, rather than
 		fabricating an existing value that was never real.</li>
 	</ul>
-	<p>All nine tests remove the registration when they finish, leaving the suite clean.</p>
+	<p>All 13 tests remove the registration when they finish, leaving the suite clean.</p>
 </cfoutput>

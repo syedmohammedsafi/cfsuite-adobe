@@ -679,6 +679,14 @@ component output="false" {
 				return trim("" & arguments.actualValue) EQ trim("" & arguments.requestedValue);
 			return len(trim("" & arguments.actualValue)) AND trim("" & arguments.actualValue) NEQ trim("" & arguments.presetValue);
 		}
+		if(lCase(normalizeArea(arguments.apiArea)) EQ "webservices" AND listFindNoCase("wspassword,ccstestwebservicepassword", lCase(arguments.settingName))){
+			if(len(trim("" & arguments.requestedValue)) EQ 0)
+				return trim("" & arguments.actualValue) EQ trim("" & arguments.requestedValue);
+			return len(trim("" & arguments.actualValue)) AND (
+				trim("" & arguments.actualValue) EQ trim("" & arguments.requestedValue)
+				OR trim("" & arguments.actualValue) NEQ trim("" & arguments.presetValue)
+			);
+		}
 		if(lCase(normalizeArea(arguments.apiArea)) EQ "restservices"){
 			// Root Path is a per-instance filesystem path — the requested value pushed to a peer
 			// is the PRIME node's own path, but each peer registers against its own, different,
