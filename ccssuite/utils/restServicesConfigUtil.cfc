@@ -263,4 +263,46 @@ component output="false" {
 		}
 		return getRestServiceIsDefaultSetting(arguments.mappingName);
 	}
+
+	variables.TEST_RESTPATH_OVERRIDE_KEY = "ccs_test_update_restpath_override";
+
+	public string function getUpdateRestPathSetting(){
+		if(structKeyExists(request, variables.TEST_RESTPATH_OVERRIDE_KEY) AND len(request[variables.TEST_RESTPATH_OVERRIDE_KEY]))
+			return request[variables.TEST_RESTPATH_OVERRIDE_KEY];
+		if(isDefined("application") AND structKeyExists(application, variables.TEST_RESTPATH_OVERRIDE_KEY) AND len(application[variables.TEST_RESTPATH_OVERRIDE_KEY]))
+			return application[variables.TEST_RESTPATH_OVERRIDE_KEY];
+		return getRealRestPathFromDisk();
+	}
+
+	public string function setUpdateRestPathSetting(required any settingValue){
+		var val = trim("" & arguments.settingValue);
+		var originalVal = getRealRestPathFromDisk();
+		if(len(val) AND val NEQ originalVal){
+			if(isDefined("application"))
+				application[variables.TEST_RESTPATH_OVERRIDE_KEY] = val;
+			request[variables.TEST_RESTPATH_OVERRIDE_KEY] = val;
+		}
+		else {
+			if(isDefined("application") AND structKeyExists(application, variables.TEST_RESTPATH_OVERRIDE_KEY))
+				structDelete(application, variables.TEST_RESTPATH_OVERRIDE_KEY);
+			if(structKeyExists(request, variables.TEST_RESTPATH_OVERRIDE_KEY))
+				structDelete(request, variables.TEST_RESTPATH_OVERRIDE_KEY);
+		}
+		return getUpdateRestPathSetting();
+	}
+
+	public string function getRealRestPathFromDisk(){
+		try {
+			var webXmlPath = server.coldfusion.rootdir & "/wwwroot/WEB-INF/web.xml";
+			if(NOT fileExists(webXmlPath))
+				return "rest";
+			var rpu = createObject("java", "coldfusion.rest.utils.RESTPathUpdate");
+			var pattern = trim("" & rpu.getRESTURLPattern(webXmlPath));
+			return len(pattern) ? pattern : "rest";
+		}
+		catch(any e){
+			return "rest";
+		}
+	}
+
 }

@@ -66,6 +66,26 @@ component output="false" {
 		return trim("" & arguments.value);
 	}
 
+	public string function resolveJvmPropertyName(required string settingName){
+		switch(lCase(trim(arguments.settingName))){
+			case "minheap":
+			case "minjvmheapsize":
+				return "MinJVMHeapSize";
+			case "maxheap":
+			case "maxjvmheapsize":
+				return "MaxJVMHeapSize";
+			case "classpath":
+				return "ClassPath";
+			case "jvmargs":
+			case "jvmarguments":
+				return "JVMArguments";
+			case "jdkpath":
+				return "jdkPath";
+			default:
+				return arguments.settingName;
+		}
+	}
+
 	private string function resolveRuntimePropertyName(required string settingName){
 		switch(normalizeKey(arguments.settingName)){
 			case "usejavaasregexengine":
@@ -300,6 +320,9 @@ component output="false" {
 		if(isDebuggingArea(area))
 			return "debugging";
 
+		if(listFindNoCase("jvm,javaandjvm", area) OR listFindNoCase("jdkpath,minheap,maxheap,classpath,jvmargs", key))
+			return "jvm";
+
 		switch(area){
 			case "mail":
 				return "mail";
@@ -394,9 +417,6 @@ component output="false" {
 		// not track this file in this environment, the same situation already confirmed for Web
 		// Services' neo-xmlrpc.xml, so the same active-push mechanism is safe here.
 		if(area EQ "cloudcredentials")
-			return true;
-		// PDF Service registration (simulated): active push required since CCS does not reliably sync this config
-		if(area EQ "pdfservices")
 			return true;
 		// GraphQL Client Configuration (neo-graphql-config.xml): confirmed via direct testing that a
 		// newly-added client configuration DOES create a real CCS version on the prime node (unlike
@@ -504,6 +524,20 @@ component output="false" {
 				runtime = getRuntime();
 				try {
 					return formatSettingValue(runtime.api.isRESTDiscoveryEnabled());
+				}
+				finally {
+					runtime.adminUtil.logout(runtime.admin);
+				}
+			case "jvm":
+				runtime = getRuntime();
+				try {
+					var propName = resolveJvmPropertyName(arguments.settingName);
+					var val = runtime.api.getJVMProperty(propName);
+					if(isNull(val)) return "";
+					var strVal = trim("" & val);
+					if(propName EQ "ClassPath" AND left(strVal, 23) EQ "-Dcoldfusion.classPath=")
+						strVal = mid(strVal, 24, len(strVal));
+					return strVal;
 				}
 				finally {
 					runtime.adminUtil.logout(runtime.admin);
@@ -621,6 +655,19 @@ component output="false" {
 				finally {
 					runtime.adminUtil.logout(runtime.admin);
 				}
+			case "jvm":
+				runtime = getRuntime();
+				try {
+					var propName = resolveJvmPropertyName(arguments.settingName);
+					var setVal = trim("" & arguments.settingValue);
+					if(propName EQ "ClassPath" AND left(setVal, 23) EQ "-Dcoldfusion.classPath=")
+						setVal = mid(setVal, 24, len(setVal));
+					runtime.api.setJVMProperty(propName, setVal);
+					return getSetting(arguments.settingName, arguments.apiArea);
+				}
+				finally {
+					runtime.adminUtil.logout(runtime.admin);
+				}
 			case "mappings":
 				return new cfsuite.ccssuite.utils.mappingsConfigUtil().init().setSetting(arguments.settingName, arguments.settingValue);
 			default:
@@ -647,6 +694,17 @@ component output="false" {
 		required any requestedValue,
 		string apiArea = ""
 	){
+		if(listFindNoCase("jvm,javaandjvm", lCase(normalizeArea(arguments.apiArea))) OR listFindNoCase("jdkpath,minheap,maxheap,classpath,jvmargs", lCase(arguments.settingName))){
+			var sKey = lCase(arguments.settingName);
+			if(sKey EQ "minheap" OR sKey EQ "maxheap")
+				return val(arguments.actualValue) EQ val(arguments.requestedValue);
+			if(sKey EQ "jdkpath")
+				return compareNoCase(trim("" & arguments.actualValue), trim("" & arguments.requestedValue)) EQ 0;
+			if(sKey EQ "classpath")
+				return compareNoCase(replace(trim("" & arguments.actualValue), "\", "/", "all"), replace(trim("" & arguments.requestedValue), "\", "/", "all")) EQ 0;
+			if(sKey EQ "jvmargs")
+				return compareNoCase(trim("" & arguments.actualValue), trim("" & arguments.requestedValue)) EQ 0;
+		}
 		if(lCase(normalizeArea(arguments.apiArea)) EQ "caching" AND compareNoCase(arguments.settingName, "redisCacheStoragePassword") EQ 0)
 			return new cfsuite.ccssuite.utils.cacheConfigUtil().init().cacheValuesMatch(arguments.settingName, arguments.requestedValue, arguments.actualValue);
 		if(lCase(normalizeArea(arguments.apiArea)) EQ "llms"){
@@ -688,6 +746,8 @@ component output="false" {
 			);
 		}
 		if(lCase(normalizeArea(arguments.apiArea)) EQ "restservices"){
+			if(listFindNoCase("update_restpath,restpath", arguments.settingName))
+				return trim("" & arguments.actualValue) EQ trim("" & arguments.requestedValue);
 			// Root Path is a per-instance filesystem path — the requested value pushed to a peer
 			// is the PRIME node's own path, but each peer registers against its own, different,
 			// local path (confirmed via direct testing), so an exact string match against the
@@ -710,7 +770,10 @@ component output="false" {
 				arguments.settingName, arguments.presetValue, arguments.actualValue, arguments.requestedValue
 			);
 		}
-		if(lCase(normalizeArea(arguments.apiArea)) EQ "nosqldatasources"){
+		if(listFindNoCase("nosql,nosqldatasources", lCase(normalizeArea(arguments.apiArea)))){
+			return new cfsuite.ccssuite.utils.nosqlConfigUtil().init().statesMatch(arguments.requestedValue, arguments.actualValue);
+		}
+		if(false){
 			return new cfsuite.ccssuite.utils.nosqlDatasourceConfigUtil().init().setMatches(
 				arguments.presetValue,
 				arguments.actualValue,

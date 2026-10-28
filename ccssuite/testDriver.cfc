@@ -218,7 +218,7 @@ component output="true" displayname=""  {
 			return false;
 		if(arguments.settingName EQ "SandboxPath")
 			return true;
-		return listFindNoCase("administrator,rds,sandboxsecurity,settings", lCase(trim(arguments.apiArea))) GT 0;
+		return listFindNoCase("administrator,rds,sandboxsecurity,settings,nosql", lCase(trim(arguments.apiArea))) GT 0;
 	}
 
 	private string function getCurrentNodeKey(){
@@ -1319,6 +1319,8 @@ component output="true" displayname=""  {
 			return "[redacted]";
 		if(compareNoCase(arguments.settingName, "httpsenabled") EQ 0 AND (NOT len(trim("" & arguments.value)) OR trim("" & arguments.value) EQ "false"))
 			return "Disabled";
+
+
 		var text = trim("" & arguments.value);
 		if(NOT len(text) OR text EQ "|")
 			return "(empty)";
@@ -1341,7 +1343,8 @@ component output="true" displayname=""  {
 	private boolean function isInstanceLocalSetting(required string apiArea, required string settingName){
 		if(isInstanceLocalApiArea(arguments.apiArea, arguments.settingName))
 			return true;
-		if(new cfsuite.ccssuite.utils.securityConfigUtil().init().isInstanceLocalSecuritySetting(arguments.settingName))
+		if(listFindNoCase("administrator,rds,sandboxsecurity,idpconfiguration,spconfiguration,security", lCase(trim(arguments.apiArea))) GT 0
+				AND new cfsuite.ccssuite.utils.securityConfigUtil().init().isInstanceLocalSecuritySetting(arguments.settingName))
 			return true;
 		return false;
 	}

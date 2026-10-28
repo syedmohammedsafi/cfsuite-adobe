@@ -1,8 +1,8 @@
 <!---
 * @file  engine.cfm
-* @description Add/Edit PDF Service - Engine (Option 2.0) — create with Option 2.0, verify sync across nodes, then remove, using fixed test alias "CCSTestPDFEngine".
+* @description Add/Edit PDF Service - Engine — update, verify sync across nodes, then restore, using test alias "CCSTestPDFEngine".
 --->
-<h2>Add/Edit PDF Service - Engine (Option 2.0) (create, verify sync, remove)</h2>
+<h2>Add/Edit PDF Service - Engine (create, verify sync, remove)</h2>
 <p>File: engine.cfm</p>
 <br>
 <cftry>
@@ -18,7 +18,7 @@
 			testDvr,
 			SETTING_NAME,
 			CGI.SCRIPT_NAME,
-			"2.0",
+			"1.0",
 			stUtil.initTestFrame(testDvr, SETTING_NAME, CGI.SCRIPT_NAME, true)
 		);
 	</cfscript>

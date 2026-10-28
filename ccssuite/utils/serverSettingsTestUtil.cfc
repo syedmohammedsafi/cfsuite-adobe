@@ -42,14 +42,6 @@ component output="true" {
 	}
 
 	private boolean function isInstanceLocalApiArea(required string apiArea, string settingName = ""){
-		// REST Services registration (neo-jaxrs.xml) is a per-instance filesystem path/mapping —
-		// confirmed via extensive direct testing (see restServices/i.cfm) that real CCS's
-		// replication of this file is unpredictable and, in this environment, has repeatedly
-		// corrupted a peer's live "ccs" mapping, so this suite deliberately never active-pushes it
-		// and never expects a peer to pick it up. Without this, the peer row showed "Pending sync"
-		// (implying CCS will eventually catch up), which is inaccurate — it never does.
-		// if(lCase(trim("" & arguments.apiArea)) EQ "restservices")
-		// 	return true;
 		return false;
 	}
 
@@ -82,10 +74,14 @@ component output="true" {
 		var currentKey = getCurrentNodeKey();
 		if(NOT application.ccsConfigMap.keyExists(currentKey) OR NOT application.ccsConfigMap.keyExists(arguments.nodeKey))
 			return true;
-		var currentCluster = application.ccsConfigMap[currentKey][application.constants.CCS_CONFIG.CLUSTER];
-		var currentEnv = application.ccsConfigMap[currentKey][application.constants.CCS_CONFIG.ENVIRONMENT];
-		var nodeCluster = application.ccsConfigMap[arguments.nodeKey][application.constants.CCS_CONFIG.CLUSTER];
-		var nodeEnv = application.ccsConfigMap[arguments.nodeKey][application.constants.CCS_CONFIG.ENVIRONMENT];
+		var clusterKey = structKeyExists(application.constants, "CCS_CONFIG") AND structKeyExists(application.constants.CCS_CONFIG, "CLUSTER") ? application.constants.CCS_CONFIG.CLUSTER : "cluster";
+		var envKey = structKeyExists(application.constants, "CCS_CONFIG") AND structKeyExists(application.constants.CCS_CONFIG, "ENVIRONMENT") ? application.constants.CCS_CONFIG.ENVIRONMENT : "environment";
+		if(NOT structKeyExists(application.ccsConfigMap[currentKey], clusterKey) OR NOT structKeyExists(application.ccsConfigMap[arguments.nodeKey], clusterKey))
+			return true;
+		var currentCluster = application.ccsConfigMap[currentKey][clusterKey];
+		var currentEnv = structKeyExists(application.ccsConfigMap[currentKey], envKey) ? application.ccsConfigMap[currentKey][envKey] : "";
+		var nodeCluster = application.ccsConfigMap[arguments.nodeKey][clusterKey];
+		var nodeEnv = structKeyExists(application.ccsConfigMap[arguments.nodeKey], envKey) ? application.ccsConfigMap[arguments.nodeKey][envKey] : "";
 		return currentCluster EQ nodeCluster AND currentEnv EQ nodeEnv;
 	}
 
@@ -355,6 +351,8 @@ component output="true" {
 
 	public string function formatDisplayValue(required string settingName, required any value){
 		var text = trim("" & arguments.value);
+		if(left(arguments.settingName, 6) EQ "mongo_" OR listFindNoCase("dsnName,driverName", arguments.settingName))
+			return new cfsuite.ccssuite.utils.nosqlDatasourceTestUtil().init().formatDisplayValue(arguments.settingName, arguments.value);
 		if(new cfsuite.ccssuite.utils.datasourceConfigUtil().init().isPostgresqlSetting(arguments.settingName))
 			return new cfsuite.ccssuite.utils.postgresqlDatasourceConfigUtil().init().formatDisplayValue(arguments.settingName, arguments.value);
 		if(new cfsuite.ccssuite.utils.datasourceConfigUtil().init().isOtherSetting(arguments.settingName))
@@ -399,6 +397,13 @@ component output="true" {
 				return "Disabled";
 			if(text EQ "true" OR text EQ "1" OR text EQ "yes" OR text EQ "Enabled")
 				return "Enabled";
+		}
+		if(compareNoCase(arguments.settingName, "engine") EQ 0){
+			if(text EQ "1.0" OR text EQ "WebKit")
+				return "1.0";
+			if(text EQ "2.0" OR text EQ "PdfReactor")
+				return "2.0";
+			return text;
 		}
 		if (isNumeric(arguments.value)) {
 			return arguments.value;
@@ -505,6 +510,49 @@ component output="true" {
 
 	public string function toggleOrmSearchIndexTestPath(required string currentValue){
 		return len(trim(arguments.currentValue)) ? "" : getOrmSearchIndexTestPath();
+	}
+	public string function getJdkTestPath(){
+		var baseDir = getDirectoryFromPath(server.coldfusion.rootdir);
+		return baseDir & "jre_test";
+	}
+
+	public string function ensureJdkTestPathExists(){
+		var baseDir = getDirectoryFromPath(server.coldfusion.rootdir);
+		var targetPath = baseDir & "jre";
+		var junctionPath = getJdkTestPath();
+		if(NOT directoryExists(junctionPath)){
+			var res = "";
+			cfexecute(
+				name="cmd.exe",
+				arguments='/c mklink /J "#junctionPath#" "#targetPath#"',
+				variable="res",
+				timeout=5
+			);
+		}
+		return junctionPath;
+	}
+
+	public void function cleanupJdkTestPath(){
+		var junctionPath = getJdkTestPath();
+		if(directoryExists(junctionPath)){
+			var res = "";
+			cfexecute(
+				name="cmd.exe",
+				arguments='/c rmdir "#junctionPath#"',
+				variable="res",
+				timeout=5
+			);
+		}
+	}
+
+	public string function toggleJdkPath(required string currentValue){
+		var val = trim(arguments.currentValue);
+		var testPath = ensureJdkTestPathExists();
+		if(compareNoCase(val, testPath) EQ 0){
+			var baseDir = getDirectoryFromPath(server.coldfusion.rootdir);
+			return baseDir & "jre";
+		}
+		return testPath;
 	}
 
 	public string function toggleStringMarker(required string currentValue, string marker = "_ccs"){
@@ -920,6 +968,20 @@ component output="true" {
 				return toggleWebDirectoryPathSuffix(value);
 			case "GoogleMapKey":
 				return toggleStringMarker(value);
+			case "minHeap":
+				return (val(value) EQ 256) ? 512 : 256;
+			case "maxHeap":
+				return (val(value) EQ 1024) ? 1040 : 1024;
+			case "jdkPath":
+				return toggleJdkPath(value);
+			case "classPath":
+				return find(",{application.home}/lib/ccsTest.jar", value)
+					? replace(value, ",{application.home}/lib/ccsTest.jar", "", "all")
+					: (value & ",{application.home}/lib/ccsTest.jar");
+			case "jvmArgs":
+				return find(" -DccsTestProp=1", value)
+					? replace(value, " -DccsTestProp=1", "", "all")
+					: (value & " -DccsTestProp=1");
 			case "solrhost":
 				return (value EQ "localhost") ? "127.0.0.1" : "localhost";
 			case "solrwebapp":
@@ -949,9 +1011,10 @@ component output="true" {
 			case "CCSTestPDFPort":
 				return (trim(value) EQ "8998") ? "" : "8998";
 			case "CCSTestPDFWeight":
-				return (trim(value) EQ "2") ? "" : "2";
-			case "CCSTestPDFEngine":
-				return (trim(value) EQ "2.0") ? "" : "2.0";
+			case "weight":
+				return (trim(value) EQ "2") ? "4" : "2";
+			case "engine":
+				return (trim(value) EQ "2.0") ? "1.0" : "2.0";
 
 			// System Probes - Global Settings
 			// System Probes - Global Settings
@@ -1125,7 +1188,7 @@ component output="true" {
 			case "CCSTestCloudConfigProxyPassword":
 				return (trim(value) EQ "ccsProxyPass1") ? "ccsProxyPass2" : "ccsProxyPass1";
 			case "CCSTestCloudConfigProxyEndpoint":
-				// "Proxy endpoint path is not supported" — confirmed via direct testing that a bare
+				// "Proxy endpoint path is not supported" ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â confirmed via direct testing that a bare
 				// hostname is rejected; a full URI (scheme + host + port) is required.
 				return (trim(value) EQ "http://proxy1.ccssuite-test.local:8080") ? "http://proxy2.ccssuite-test.local:8080" : "http://proxy1.ccssuite-test.local:8080";
 			case "CCSTestCloudConfigNumRetries":
@@ -1162,7 +1225,7 @@ component output="true" {
 			case "CCSTestGraphqlSchemaPath":
 				return (trim(value) EQ "schema/ccsTestPath1.json") ? "schema/ccsTestPath2.json" : "schema/ccsTestPath1.json";
 			case "CCSTestGraphqlSchemaPathEnabled":
-				// no stored boolean exists for this (see graphqlConfigUtil.cfc) — "true"/"false" here
+				// no stored boolean exists for this (see graphqlConfigUtil.cfc) ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â "true"/"false" here
 				// mean "recreate the service in schema-path mode" / "...in service-URL mode".
 				return (trim(value) EQ "true") ? "false" : "true";
 			case "CCSTestGraphqlServiceUrl":
@@ -1198,7 +1261,7 @@ component output="true" {
 				// Proxy Server's real default is blank (no proxy configured), so this follows
 				// the WSDL URL field's plain empty-\>create-\>update pattern rather than
 				// Authentication Type/Timeout's non-empty default. Both values must be real,
-				// resolvable hostnames — setWebService() actually attempts to fetch the WSDL
+				// resolvable hostnames ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â setWebService() actually attempts to fetch the WSDL
 				// through whatever proxy is given, and an unresolvable host throws
 				// UnknownHostException and aborts the registration entirely.
 				return (trim(value) EQ "localhost") ? "127.0.0.1" : "localhost";
@@ -1229,10 +1292,13 @@ component output="true" {
 			case "CCSTestWebServiceWorkstation":
 			case "wsworkstation":
 				return (trim(value) EQ "ccsWsStation1") ? "ccsWsStation2" : "ccsWsStation1";
+			case "update_restpath":
+			case "restpath":
+				return (trim(value) EQ "comservices") ? "rest" : "comservices";
 			case "CCSTestRestService":
 				// Root Path's real default is blank (no such mapping registered), so this
 				// follows the same plain empty-\>create-\>update pattern as the Web Service
-				// Name test — the tracked "value" is the registered root path itself.
+				// Name test ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â the tracked "value" is the registered root path itself.
 				return new cfsuite.ccssuite.utils.restServicesConfigUtil().init().getTestRootPath();
 			case "CCSTestRestServiceHost":
 				return (trim(value) EQ "localhost:8500") ? "localhost:9999" : "localhost:8500";
@@ -1464,7 +1530,7 @@ component output="true" {
 			case "ServerCacheType":
 				return (val(value) EQ 0) ? 1 : 0;
 			case "SiteUrl":
-				// Package Manager's real default is Adobe's own update-site URL, not a boolean —
+				// Package Manager's real default is Adobe's own update-site URL, not a boolean ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â
 				// falling through to the generic boolean default here threw "invalid current
 				// setting" on every run. Cycles between two fixed test URLs instead, restored to
 				// the real value afterward like every other field in this suite.
@@ -1633,6 +1699,7 @@ component output="true" {
 		required struct syncTestResult,
 		required string settingName
 	){
+		if(arguments.settingName EQ "jdkPath"){ cleanupJdkTestPath(); }
 		ensureTestConstants();
 		if(NOT structKeyExists(arguments.syncTestResult, "scriptPath"))
 			application.ccsTestNodesScope = "currentPort";
@@ -1781,12 +1848,12 @@ component output="true" {
 
 		if(showAllNodes OR syncResult.passed){
 			// Re-check under the test's OWN requested scope, not a hardcoded "all": a test that
-			// explicitly asked for nodesScope="currentPort" (e.g. ColdFusion Collections — a
+			// explicitly asked for nodesScope="currentPort" (e.g. ColdFusion Collections ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â a
 			// genuinely per-instance, non-CCS-replicated resource) means peer nodes are out of
 			// scope for this setting entirely. Forcing "all" here used to re-query them anyway,
 			// which for areas backed by a shared external resource (e.g. all three CF instances in
 			// this environment pointing at the same Solr server) made an unrelated peer look like it
-			// had received a sync it never did — because there's only one Solr, not because CCS
+			// had received a sync it never did ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â because there's only one Solr, not because CCS
 			// pushed anything.
 			initializeCcsNodeConfig(arguments.nodesScope);
 			var afterFrame = initTestFrame(
@@ -1796,12 +1863,12 @@ component output="true" {
 				arguments.skipUnreachableNodes
 			);
 			// Restore full cluster metadata for display purposes now that afterFrame is already
-			// built under the requested (possibly narrower) scope — ccsConfigMap doubles as both
+			// built under the requested (possibly narrower) scope ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â ccsConfigMap doubles as both
 			// "which nodes get queried" and "cluster/environment labels for the table", and those
 			// are different concerns: a currentPort test shouldn't query peers, but the table should
 			// still be able to say WHICH cluster/environment each out-of-scope node belongs to.
 			// initializeCcsNodeConfig() also overwrites the ccsTestNodesScope flag itself, so restore
-			// the test's actual requested scope afterward — buildAllNodeSyncVerificationRows reads
+			// the test's actual requested scope afterward ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â buildAllNodeSyncVerificationRows reads
 			// that flag to tell "genuinely out of scope" apart from "unreachable".
 			initializeCcsNodeConfig("all", true);
 			application.ccsTestNodesScope = arguments.nodesScope;
@@ -1925,7 +1992,7 @@ component output="true" {
 		var instanceLocalArea = isInstanceLocalApiArea(arguments.apiArea, settingName);
 		var apiUtil = new cfsuite.ccssuite.utils.serverSettingsApiUtil().init();
 		var requireCacheSync = (lCase(arguments.apiArea) EQ "caching"
-			OR listFindNoCase("mappings,scheduledtasks,fontmanagement,datasources,systemprobes,restservices", arguments.apiArea)
+			OR listFindNoCase("mappings,scheduledtasks,fontmanagement,datasources,nosql,pdfservices,systemprobes,restservices,solrserver,javaandjvm,jvm", arguments.apiArea)
 			OR (lCase(arguments.apiArea) EQ "memoryvariables" AND new cfsuite.ccssuite.utils.memoryVariablesConfigUtil().init().isStorageSetting(settingName)))
 			AND (NOT structKeyExists(application, "ccsTestNodesScope") OR application.ccsTestNodesScope EQ "all");
 
@@ -2054,7 +2121,7 @@ component output="true" {
 
 			var metadata = getNodeMetadataForKey(nodeKey);
 			// Distinguish "we captured this node's value before the test ran, and it happens to be
-			// blank" (hasCapturedValue — a real, known state, e.g. no collection existed there) from
+			// blank" (hasCapturedValue ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â a real, known state, e.g. no collection existed there) from
 			// "we never captured anything for this node at all" (truly unavailable, e.g. unreachable).
 			// The old check (len(trim(existing))) conflated the two, showing "(unavailable)" even
 			// when the real pre-test value was a legitimate empty string.
@@ -2065,12 +2132,12 @@ component output="true" {
 				: "(unavailable)";
 			// A test that explicitly scoped itself to nodesScope="currentPort" (a genuinely
 			// per-instance, non-CCS-replicated resource) never intended to evaluate any other node
-			// at all — that's not a skipped/unreachable node, it's out of scope by design, so an
+			// at all ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â that's not a skipped/unreachable node, it's out of scope by design, so an
 			// empty existing value here is expected and should not read as a failure.
 			var outOfScope = application.ccsTestNodesScope EQ "currentPort";
 			var isCrossCluster = !isSameClusterNode(nodeKey);
 			var requireSync = (lCase(arguments.apiArea) EQ "caching"
-				OR listFindNoCase("mappings,scheduledtasks,fontmanagement,datasources,systemprobes,restservices", arguments.apiArea)
+				OR listFindNoCase("mappings,scheduledtasks,fontmanagement,datasources,nosql,pdfservices,systemprobes,restservices,solrserver,javaandjvm,jvm", arguments.apiArea)
 				OR (lCase(arguments.apiArea) EQ "memoryvariables" AND new cfsuite.ccssuite.utils.memoryVariablesConfigUtil().init().isStorageSetting(arguments.afterFrame[application.testConstants.TEST_FRAME.CFSETTING])))
 				AND (NOT structKeyExists(application, "ccsTestNodesScope") OR application.ccsTestNodesScope EQ "all");
 			var nodePassed = false;

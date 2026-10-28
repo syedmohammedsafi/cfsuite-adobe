@@ -27,12 +27,26 @@ component output="false" displayname=""  {
 		cflog(type="information", application=true, file="#application.applicationname#", 
 			text="testManager.getPrimeNodeKey : node index randomly selected - #randNodeIndex#")
 
+		application.primeNodeIndex = randNodeIndex;
+		application.primeNodeKey = getPrimeNodeKey();
+
 		return randNodeIndex;
 	}
 
 
 	public function getPrimeNodeKey(){
-		primeNodeConfigStruct = getNodeConfigByIndex(application.primeNodeIndex)
+		var currentPort = val(CGI.SERVER_PORT);
+		if(structKeyExists(application, "ccsConfigMap")){
+			for(var k in application.ccsConfigMap){
+				var parts = listToArray(k, "::", false, true);
+				if(arrayLen(parts) LT 2) parts = listToArray(k, ":", false, true);
+				if(arrayLen(parts) GTE 2 AND val(parts[2]) EQ currentPort){
+					return k;
+				}
+			}
+		}
+		var pIndex = structKeyExists(application, "primeNodeIndex") ? application.primeNodeIndex : 1;
+		primeNodeConfigStruct = getNodeConfigByIndex(pIndex);
 		return getNodeKeyNameFromNodeConfig(primeNodeConfigStruct);
 	}
 
@@ -110,16 +124,32 @@ component output="false" displayname=""  {
 
 
 	public struct function getPrimeNodeConfig(){
-		return application.ccsConfigMap.find(application.primeNodeKey);
+		application.primeNodeKey = getPrimeNodeKey();
+		if(len(trim(application.primeNodeKey)) AND structKeyExists(application, "ccsConfigMap") AND application.ccsConfigMap.keyExists(application.primeNodeKey))
+			return application.ccsConfigMap.find(application.primeNodeKey);
+		if(structKeyExists(application, "ccsConfigMap") AND NOT structIsEmpty(application.ccsConfigMap)){
+			for(var k in application.ccsConfigMap){
+				application.primeNodeKey = k;
+				return application.ccsConfigMap.find(k);
+			}
+		}
+		return {};
 	}
 
 
 	public string function getPrimeNodeEnvironment(){
-		return getEnvironmentFromConfigMap(this.getPrimeNodeConfigMap());
+		var cfg = this.getPrimeNodeConfigMap();
+		if(structIsEmpty(cfg))
+			return "";
+		return getEnvironmentFromConfigMap(cfg);
 	}
 
 	public struct function getPrimeNodeConfigMap(){
-		return application.ccsConfigMap.find(application.primeNodeKey);
+		if(NOT structKeyExists(application, "primeNodeKey") OR NOT len(trim(application.primeNodeKey)))
+			application.primeNodeKey = getPrimeNodeKey();
+		if(len(trim(application.primeNodeKey)) AND structKeyExists(application, "ccsConfigMap") AND application.ccsConfigMap.keyExists(application.primeNodeKey))
+			return application.ccsConfigMap.find(application.primeNodeKey);
+		return {};
 	}
 
 	public string function getNodeKeyListInEnvironment(required string cluster, required string env){
@@ -153,6 +183,8 @@ component output="false" displayname=""  {
 
 	public string function getNodeKeysInPrimeEnvironment(){
 		primeNodeConfig = getPrimeNodeConfig()
+		if(structIsEmpty(primeNodeConfig) OR NOT structKeyExists(primeNodeConfig, application.constants.CCS_CONFIG.CLUSTER))
+			return structKeyExists(application, "ccsConfigMap") ? listFirst(structKeyList(application.ccsConfigMap)) : "";
 		primeCluster = primeNodeConfig.find(application.constants.CCS_CONFIG.CLUSTER)
 		primeEnv = primeNodeConfig.find(application.constants.CCS_CONFIG.ENVIRONMENT)
 
@@ -162,6 +194,8 @@ component output="false" displayname=""  {
 
 	public string function getNodeKeysNotInPrimeEnvironment(){
 		primeNodeConfig = getPrimeNodeConfig()
+		if(structIsEmpty(primeNodeConfig) OR NOT structKeyExists(primeNodeConfig, application.constants.CCS_CONFIG.CLUSTER))
+			return "";
 		primeCluster = primeNodeConfig.find(application.constants.CCS_CONFIG.CLUSTER)
 		primeEnv = primeNodeConfig.find(application.constants.CCS_CONFIG.ENVIRONMENT)
 

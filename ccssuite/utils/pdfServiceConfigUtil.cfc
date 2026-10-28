@@ -71,8 +71,25 @@ component output="false" {
 					runtime.api.removeServiceManager(arguments.name);
 				}
 				catch(any e){
-					// Fallback to direct WDDX cleanup if removeServiceManager encounters connection error
-					cleanFromNeoDocumentXml(arguments.name);
+					// Service may be offline (connection refused) or CCS offline. Safely unregister from in-memory config map.
+					try {
+						var ccsUtil = createObject("java", "coldfusion.centralconfig.client.CentralConfigClientUtil");
+						var wasEnabled = ccsUtil.isEnabled();
+						if(wasEnabled) ccsUtil.setEnabled("false");
+						try {
+							var sf = createObject("java", "coldfusion.server.ServiceFactory");
+							var pdfg = sf.getPDFGService();
+							var cfgMap = pdfg.getAllServiceManagers();
+							if(cfgMap.containsKey(arguments.name)){
+								cfgMap.remove(arguments.name);
+								try { pdfg.store(); } catch(any se){}
+							}
+						}
+						finally {
+							if(wasEnabled) ccsUtil.setEnabled("true");
+						}
+					}
+					catch(any e2){}
 				}
 			}
 		}
@@ -81,69 +98,89 @@ component output="false" {
 		}
 	}
 
-	private void function cleanFromNeoDocumentXml(required string serviceName){
-		try {
-			var xmlPath = server.coldfusion.rootdir & "/lib/neo-document.xml";
-			if(fileExists(xmlPath)){
-				var xmlContent = fileRead(xmlPath);
-				var data = {};
-				cfwddx(action="WDDX2CFML", input=xmlContent, output="data");
-				if(isArray(data) AND arrayLen(data) GTE 4 AND isStruct(data[4])){
-					if(structKeyExists(data[4], arguments.serviceName)){
-						structDelete(data[4], arguments.serviceName);
-						var wddxOut = "";
-						cfwddx(action="CFML2WDDX", input=data, output="wddxOut");
-						fileWrite(xmlPath, wddxOut);
-					}
-				}
-			}
-		}
-		catch(any e){}
-	}
-
 	public void function addOrUpdateService(
 		required string name,
-		string hostName = "127.0.0.2",
-		numeric port = 8998,
-		numeric weight = 2,
-		boolean httpsEnabled = false,
-		string engine = "PdfReactor"
+		string hostName = "",
+		any port = "",
+		any weight = "",
+		any httpsEnabled = "",
+		string engine = ""
 	){
 		var runtime = getRuntime();
 		try {
 			var allMgrs = runtime.api.getAllServiceManager();
 			var exists = isStruct(allMgrs) AND structKeyExists(allMgrs, arguments.name);
+			var existing = exists ? allMgrs[arguments.name] : {};
+
+			var finalHost = len(trim(arguments.hostName)) ? trim(arguments.hostName) : (structKeyExists(existing, "hostname") ? existing.hostname : "127.0.0.2");
+			var finalPort = len(trim(arguments.port)) ? val(arguments.port) : (structKeyExists(existing, "port") ? val(existing.port) : 8998);
+			var finalWeight = len(trim(arguments.weight)) ? val(arguments.weight) : (structKeyExists(existing, "weight") ? val(existing.weight) : 2);
+			var finalHttps = len(trim(arguments.httpsEnabled)) ? arguments.httpsEnabled : (structKeyExists(existing, "ishttps") ? existing.ishttps : false);
+			var finalEngine = len(trim(arguments.engine)) ? trim(arguments.engine) : (structKeyExists(existing, "engine") ? existing.engine : "PdfReactor");
+
 			if(exists){
-				runtime.api.editServiceManager(
-					name = arguments.name,
-					hostname = arguments.hostName,
-					port = val(arguments.port),
-					weight = val(arguments.weight),
-					ishttps = arguments.httpsEnabled,
-					engine = arguments.engine
-				);
+				try {
+					runtime.api.editServiceManager(
+						name = arguments.name,
+						hostname = finalHost,
+						port = val(finalPort),
+						weight = val(finalWeight),
+						ishttps = finalHttps,
+						engine = finalEngine
+					);
+				}
+				catch(any editErr){
+					try {
+						runtime.api.removeServiceManager(arguments.name);
+					}
+					catch(any remErr){}
+					runtime.api.addServiceManager(
+						name = arguments.name,
+						hostname = finalHost,
+						port = val(finalPort),
+						weight = val(finalWeight),
+						ishttps = finalHttps,
+						engine = finalEngine
+					);
+				}
 			}
 			else {
 				try {
 					runtime.api.addServiceManager(
 						name = arguments.name,
-						hostname = arguments.hostName,
-						port = val(arguments.port),
-						weight = val(arguments.weight),
-						ishttps = arguments.httpsEnabled,
-						engine = arguments.engine
+						hostname = finalHost,
+						port = val(finalPort),
+						weight = val(finalWeight),
+						ishttps = finalHttps,
+						engine = finalEngine
 					);
 				}
 				catch(any addErr){
 					if(findNoCase("ServiceManagerExistsException", addErr.message)){
-						runtime.api.editServiceManager(
-							name = arguments.name,
-							hostname = arguments.hostName,
-							port = val(arguments.port),
-							weight = val(arguments.weight),
-							ishttps = arguments.httpsEnabled,
-							engine = arguments.engine
-						);
+						try {
+							runtime.api.editServiceManager(
+								name = arguments.name,
+								hostname = finalHost,
+								port = val(finalPort),
+								weight = val(finalWeight),
+								ishttps = finalHttps,
+								engine = finalEngine
+							);
+						}
+						catch(any editErr2){
+							try {
+								runtime.api.removeServiceManager(arguments.name);
+							}
+							catch(any remErr2){}
+							runtime.api.addServiceManager(
+								name = arguments.name,
+								hostname = finalHost,
+								port = val(finalPort),
+								weight = val(finalWeight),
+								ishttps = finalHttps,
+								engine = finalEngine
+							);
+						}
 					}
 					else {
 						rethrow;
@@ -154,6 +191,17 @@ component output="false" {
 		finally {
 			runtime.adminUtil.logout(runtime.admin);
 		}
+	}
+
+	private struct function getActiveServiceManager(required struct allMgrs, string alias = ""){
+		if(len(trim(arguments.alias)) AND structKeyExists(arguments.allMgrs, arguments.alias) AND isStruct(arguments.allMgrs[arguments.alias]))
+			return arguments.allMgrs[arguments.alias];
+		if(structKeyExists(arguments.allMgrs, "localhost") AND isStruct(arguments.allMgrs["localhost"]))
+			return arguments.allMgrs["localhost"];
+		var keys = structKeyArray(arguments.allMgrs);
+		if(arrayLen(keys) AND isStruct(arguments.allMgrs[keys[1]]))
+			return arguments.allMgrs[keys[1]];
+		return { weight = 2, engine = "PdfReactor", ishttps = false, hostname = "", port = "" };
 	}
 
 	// 1. NAME SETTING
@@ -238,9 +286,10 @@ component output="false" {
 		var runtime = getRuntime();
 		try {
 			var allMgrs = runtime.api.getAllServiceManager();
-			if(isStruct(allMgrs) AND structKeyExists(allMgrs, arguments.alias)){
-				var mgr = allMgrs[arguments.alias];
-				return structKeyExists(mgr, "weight") ? ("" & int(val(mgr.weight))) : "";
+			if(isStruct(allMgrs)){
+				var mgr = getActiveServiceManager(allMgrs, arguments.alias);
+				if(structKeyExists(mgr, "weight"))
+					return "" & int(val(mgr.weight));
 			}
 			return "";
 		}
@@ -265,13 +314,14 @@ component output="false" {
 		var runtime = getRuntime();
 		try {
 			var allMgrs = runtime.api.getAllServiceManager();
-			if(isStruct(allMgrs) AND structKeyExists(allMgrs, arguments.alias)){
-				var mgr = allMgrs[arguments.alias];
+			if(isStruct(allMgrs)){
+				var mgr = getActiveServiceManager(allMgrs, arguments.alias);
 				if(structKeyExists(mgr, "ishttps")){
-					return (isBoolean(mgr.ishttps) AND mgr.ishttps) ? "true" : "false";
+					var isHttps = mgr.ishttps;
+					return (isHttps EQ true OR isHttps EQ "YES" OR isHttps EQ 1) ? "true" : "false";
 				}
 			}
-			return "";
+			return "false";
 		}
 		finally {
 			runtime.adminUtil.logout(runtime.admin);
@@ -295,8 +345,8 @@ component output="false" {
 		var runtime = getRuntime();
 		try {
 			var allMgrs = runtime.api.getAllServiceManager();
-			if(isStruct(allMgrs) AND structKeyExists(allMgrs, arguments.alias)){
-				var mgr = allMgrs[arguments.alias];
+			if(isStruct(allMgrs)){
+				var mgr = getActiveServiceManager(allMgrs, arguments.alias);
 				if(structKeyExists(mgr, "engine")){
 					var engVal = trim("" & mgr.engine);
 					if(compareNoCase(engVal, "WebKit") EQ 0) return "1.0";

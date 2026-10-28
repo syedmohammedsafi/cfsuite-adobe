@@ -237,7 +237,7 @@ component output="false"{
 	}
 
 
-	private struct function readLocalCcsProperties(){
+	public struct function readLocalCcsProperties(){
 		result = {};
 		ccsFile = server.coldfusion.rootdir & application.constants.SYS_CONFIG.FILE_SEPARATOR &
 			"lib" & application.constants.SYS_CONFIG.FILE_SEPARATOR &
@@ -257,6 +257,15 @@ component output="false"{
 				result[key] = value;
 		}
 		return result;
+	}
+
+	public boolean function isJvmConfigExcludedFromCcs(){
+		try {
+			var props = readLocalCcsProperties();
+			if(structKeyExists(props, "excludefiles") AND listFindNoCase(props.excludefiles, "jvm.config"))
+				return true;
+		} catch(any e){}
+		return true;
 	}
 
 

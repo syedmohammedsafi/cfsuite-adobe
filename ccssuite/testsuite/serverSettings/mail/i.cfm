@@ -8,7 +8,8 @@
 		<li><a href="mailUsername.cfm">User name (username)</a></li>
 		<li><a href="mailPassword.cfm">Password (password)</a></li>
 		<li><a href="mailPort.cfm">Server port (port)</a></li>
-		<li><a href="mailVerifyServerConnection.cfm">Verify mail server connection (TestConnection; TCP reachability)</a></li>
+		<li><a href="TestConnection.cfm">Verify mail server connection action (TestConnection)</a></li>
+		<li><a href="mailVerifyServerConnection.cfm">Verify mail server connection (TCP reachability)</a></li>
 		<li><a href="mailBackupMailServers.cfm">Backup Mail Servers (BackupMailServers)</a></li>
 		<li><a href="mailSign.cfm">Sign the mail (sign)</a></li>
 		<li><a href="mailKeystore.cfm">Keystore (keystore)</a></li>

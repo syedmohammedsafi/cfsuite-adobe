@@ -4,10 +4,10 @@
 	<p><a href="../i.cfm">&larr; Data &amp; Services</a></p>
 	<ul>
 		<li><a href="solrHost.cfm">Solr Host Name (solrhost)</a></li>
-		<!--- <li><a href="solrHome.cfm">Solr Home (solrhome)</a> — per-instance path, nodesScope="currentPort"</li> --->
+		<li><a href="solrHome.cfm">Solr Home (solrhome)</a></li>
 		<li><a href="solrAdminPort.cfm">Solr Admin Port (solrport)</a></li>
 		<li><a href="solrUsername.cfm">User name (username)</a></li>
-		<!--- <li><a href="solrPassword.cfm">Password (password)</a> — auto-encrypted by CF at rest, tested leniently like mail passwords</li> --->
+		<li><a href="solrPassword.cfm">Password (password)</a></li>
 		<li><a href="solrConnection.cfm">Solr Connection - Use HTTPS (httpsenabled)</a></li>
 		<li><a href="solrAdminHttpsPort.cfm">Solr Admin HTTPS Port (solrhttpsport)</a></li>
 		<li><a href="solrWebapp.cfm">Solr Webapp (solrwebapp)</a></li>

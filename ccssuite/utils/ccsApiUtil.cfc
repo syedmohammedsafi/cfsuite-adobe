@@ -104,6 +104,8 @@ component {
 					return new cfsuite.ccssuite.utils.webServicesConfigUtil().init().getWebServiceWorkstationSetting(arguments.settingName);
 				return new cfsuite.ccssuite.utils.webServicesConfigUtil().init().getWebServiceMappingSetting(arguments.settingName);
 			case "restServices":
+				if(listFindNoCase("update_restpath,restpath", arguments.settingName))
+					return new cfsuite.ccssuite.utils.restServicesConfigUtil().init().getUpdateRestPathSetting();
 				if(lCase(arguments.settingName) EQ "ccstestrestservicehost")
 					return new cfsuite.ccssuite.utils.restServicesConfigUtil().init().getRestServiceHostSetting(arguments.settingName);
 				if(lCase(arguments.settingName) EQ "ccstestrestservicemapping")
@@ -262,6 +264,8 @@ component {
 					return new cfsuite.ccssuite.utils.webServicesConfigUtil().init().setWebServiceWorkstationSetting(arguments.settingName, arguments.settingValue);
 				return new cfsuite.ccssuite.utils.webServicesConfigUtil().init().setWebServiceMappingSetting(arguments.settingName, arguments.settingValue);
 			case "restServices":
+				if(listFindNoCase("update_restpath,restpath", arguments.settingName))
+					return new cfsuite.ccssuite.utils.restServicesConfigUtil().init().setUpdateRestPathSetting(arguments.settingValue);
 				if(lCase(arguments.settingName) EQ "ccstestrestservicehost")
 					return new cfsuite.ccssuite.utils.restServicesConfigUtil().init().setRestServiceHostSetting(arguments.settingName, arguments.settingValue);
 				if(lCase(arguments.settingName) EQ "ccstestrestservicemapping")

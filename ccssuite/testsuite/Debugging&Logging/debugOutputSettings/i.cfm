@@ -23,6 +23,19 @@
 		<li><a href="flashFormCompileErrors.cfm">Flash Form Compile Errors and Messages (Development use only)</a></li>
 	</ul>
 
+		<h3>Variables scopes</h3>
+	<ul>
+		<li><a href="applicationvar.cfm">Application Variables (applicationvar)</a></li>
+		<li><a href="cookievar.cfm">Cookie Variables (cookievar)</a></li>
+		<li><a href="servervar.cfm">Server Variables (servervar)</a></li>
+		<li><a href="cgivar.cfm">CGI Variables (cgivar)</a></li>
+		<li><a href="formvar.cfm">Form Variables (formvar)</a></li>
+		<li><a href="sessionvar.cfm">Session Variables (sessionvar)</a></li>
+		<li><a href="clientvar.cfm">Client Variables (clientvar)</a></li>
+		<li><a href="requestvar.cfm">Request Variables (requestvar)</a></li>
+		<li><a href="urlvar.cfm">URL Variables (urlvar)</a></li>
+	</ul>
+
 	<h3>Template highlighting</h3>
 	<ul>
 		<li><a href="templateMode.cfm">Execution time format</a></li>

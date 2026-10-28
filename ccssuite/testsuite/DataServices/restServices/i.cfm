@@ -36,5 +36,6 @@
 		<li><a href="restServiceHost.cfm">Host [:Port]</a></li>
 		<li><a href="restServiceMapping.cfm">Service Mapping</a></li>
 		<li><a href="restServiceIsDefault.cfm">Set as default application</a></li>
+		<li><a href="update_restpath.cfm">Update application REST service target path (update_restpath)</a></li>
 	</ul>
 </cfoutput>

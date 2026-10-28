@@ -17,7 +17,7 @@
 		testDvr = new cfsuite.ccssuite.testDriver();
 		stUtil = new cfsuite.ccssuite.utils.serverSettingsTestUtil().init();
 		syncTestResult = {};
-		syncTestResult = stUtil.runMultiNodeBooleanSyncTest(testDvr, SETTING_NAME, CGI.SCRIPT_NAME, true, "currentPort", true);
+		syncTestResult = stUtil.runMultiNodeBooleanSyncTest(testDvr, SETTING_NAME, CGI.SCRIPT_NAME, true, "all", true);
 	</cfscript>
 
 	<cf_qatest id="test-Data_Services-Solr_Server-#SETTING_NAME#">
