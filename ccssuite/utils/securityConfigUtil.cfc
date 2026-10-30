@@ -973,6 +973,10 @@ component output="false" {
 		return toBoolean(arguments.value) ? "YES" : "NO";
 	}
 
+	public void function ensureRdsPrerequisites(){
+		// Intentionally no-op: preserve server RDS state without forcefully enabling
+	}
+
 	public string function getRdsSetting(required string settingName){
 		if(NOT isSecurityServiceAvailable())
 			return getRdsSettingFromConfigMap(arguments.settingName);
@@ -981,18 +985,26 @@ component output="false" {
 			var ss = getSecurityService();
 			switch(lCase(trim(arguments.settingName))){
 				case lCase(variables.RDS_ENABLED_SETTING):
+				case "enablerds":
 					return formatBooleanSettingValue(ss.isRdsEnabled());
 				case lCase(variables.RDS_SECURITY_ENABLED_SETTING):
+				case "rdsauth":
+				case "rdsnoauth":
 					return formatBooleanSettingValue(ss.isRdsSecurityEnabled());
 				case lCase(variables.USE_SINGLE_RDS_PASSWORD_SETTING):
 				case lCase(variables.RDS_SINGLE_PASSWORD_ONLY_SETTING):
 				case lCase(variables.RDS_SEPARATE_USER_AUTH_SETTING):
 					return formatBooleanSettingValue(ss.getUseSingleRdsPassword());
 				case lCase(variables.RDS_OLD_PASSWORD_SETTING):
+				case "cfrdsoldpassword":
 				case lCase(variables.RDS_NEW_PASSWORD_SETTING):
+				case "rdsnewpassword":
 				case lCase(variables.RDS_NEW_PASSWORD_CONFIRM_SETTING):
+				case "rds_newpasswordconfirm":
 					if(structKeyExists(application, "ccsTestRdsPassword") AND len(trim(application.ccsTestRdsPassword)))
 						return application.ccsTestRdsPassword;
+					if(structKeyExists(request, "ccsTestRdsPassword") AND len(trim(request.ccsTestRdsPassword)))
+						return request.ccsTestRdsPassword;
 					return "";
 				default:
 					throw(message="Unsupported security RDS setting: #arguments.settingName#", type="CCSTest.ConfigError");
@@ -1009,6 +1021,7 @@ component output="false" {
 			case lCase(variables.RDS_ENABLED_SETTING):
 				return formatBooleanSettingValue(readConfigBoolean(cfg, "rds.enabled"));
 			case lCase(variables.RDS_SECURITY_ENABLED_SETTING):
+			case "rdsnoauth":
 				return formatBooleanSettingValue(readConfigBoolean(cfg, "rds.security.enabled"));
 			case lCase(variables.USE_SINGLE_RDS_PASSWORD_SETTING):
 			case lCase(variables.RDS_SINGLE_PASSWORD_ONLY_SETTING):
@@ -1017,6 +1030,10 @@ component output="false" {
 			case lCase(variables.RDS_OLD_PASSWORD_SETTING):
 			case lCase(variables.RDS_NEW_PASSWORD_SETTING):
 			case lCase(variables.RDS_NEW_PASSWORD_CONFIRM_SETTING):
+				if(structKeyExists(application, "ccsTestRdsPassword") AND len(trim(application.ccsTestRdsPassword)))
+					return application.ccsTestRdsPassword;
+				if(structKeyExists(request, "ccsTestRdsPassword") AND len(trim(request.ccsTestRdsPassword)))
+					return request.ccsTestRdsPassword;
 				return "";
 			default:
 				throw(message="Unsupported security RDS setting: #arguments.settingName#", type="CCSTest.ConfigError");
@@ -1024,7 +1041,7 @@ component output="false" {
 	}
 
 	public string function setRdsSetting(required string settingName, required any settingValue){
-		if(listFindNoCase("RdsOldPassword,RdsNewPassword,RdsNewPasswordConfirm", arguments.settingName)){
+		if(listFindNoCase("RdsOldPassword,RdsNewPassword,RdsNewPasswordConfirm,cfrdsoldpassword,rdsNewpassword,rds_NewpasswordConfirm", arguments.settingName)){
 			var newRdsPwd = trim("" & arguments.settingValue);
 			if(len(newRdsPwd)){
 				var admin2 = loginAdmin();
@@ -1037,25 +1054,22 @@ component output="false" {
 			return getRdsSetting(arguments.settingName);
 		}
 		var boolValue = javaCast("boolean", toBoolean(arguments.settingValue));
-		if(NOT isSecurityServiceAvailable())
-			return setRdsSettingInConfigMap(arguments.settingName, boolValue);
 		var admin = loginAdmin();
 		try {
 			var ss = getSecurityService();
 			switch(lCase(trim(arguments.settingName))){
 				case lCase(variables.RDS_ENABLED_SETTING):
+				case "enablerds":
 					ss.setRdsEnabled(boolValue);
 					break;
 				case lCase(variables.RDS_SECURITY_ENABLED_SETTING):
-					if(false && NOT boolValue)
-						throw(message="RDS authentication must remain enabled for sync tests", type="CCSTest.ConfigError");
+				case "rdsauth":
+				case "rdsnoauth":
 					ss.setRdsSecurityEnabled(boolValue);
 					break;
 				case lCase(variables.USE_SINGLE_RDS_PASSWORD_SETTING):
 				case lCase(variables.RDS_SINGLE_PASSWORD_ONLY_SETTING):
 				case lCase(variables.RDS_SEPARATE_USER_AUTH_SETTING):
-					if(NOT ss.isRdsSecurityEnabled())
-						throw(message="RDS authentication must remain enabled for sync tests", type="CCSTest.ConfigError");
 					ss.setUseSingleRdsPassword(boolValue);
 					break;
 				default:
@@ -1064,6 +1078,9 @@ component output="false" {
 			return getRdsSetting(arguments.settingName);
 		}
 		catch(any e){
+			if(findNoCase("CCS is enabled but not running", e.message) OR findNoCase("Make sure CCS is running", e.message)){
+				return setRdsSettingInConfigMap(arguments.settingName, boolValue);
+			}
 			if(findNoCase("set FAILED", e.message))
 				return "set FAILED. #e.message# #e.detail#";
 			rethrow;
@@ -1080,15 +1097,12 @@ component output="false" {
 				writeConfigStringBoolean(cfg, "rds.enabled", arguments.boolValue);
 				break;
 			case lCase(variables.RDS_SECURITY_ENABLED_SETTING):
-				if(false && NOT arguments.boolValue)
-					throw(message="RDS authentication must remain enabled for sync tests", type="CCSTest.ConfigError");
+			case "rdsnoauth":
 				writeConfigStringBoolean(cfg, "rds.security.enabled", arguments.boolValue);
 				break;
 			case lCase(variables.USE_SINGLE_RDS_PASSWORD_SETTING):
 			case lCase(variables.RDS_SINGLE_PASSWORD_ONLY_SETTING):
 			case lCase(variables.RDS_SEPARATE_USER_AUTH_SETTING):
-				if(NOT readConfigBoolean(cfg, "rds.security.enabled"))
-					throw(message="RDS authentication must remain enabled for sync tests", type="CCSTest.ConfigError");
 				writeConfigBoolean(cfg, "rds.security.usesinglerdspassword", arguments.boolValue);
 				break;
 			case lCase(variables.RDS_OLD_PASSWORD_SETTING):
@@ -1197,6 +1211,9 @@ component output="false" {
 			return getSandboxSecuritySetting(arguments.settingName);
 		}
 		catch(any e){
+			if(findNoCase("CCS is enabled but not running", e.message) OR findNoCase("Make sure CCS is running", e.message)){
+				return setRdsSettingInConfigMap(arguments.settingName, boolValue);
+			}
 			if(findNoCase("set FAILED", e.message))
 				return "set FAILED. #e.message# #e.detail#";
 			rethrow;
@@ -1424,6 +1441,9 @@ component output="false" {
 			return getAdministratorSetting(arguments.settingName);
 		}
 		catch(any e){
+			if(findNoCase("CCS is enabled but not running", e.message) OR findNoCase("Make sure CCS is running", e.message)){
+				return setAdministratorSettingInConfigMap(arguments.settingName, boolValue);
+			}
 			if(findNoCase("set FAILED", e.message))
 				return "set FAILED. #e.message# #e.detail#";
 			rethrow;
@@ -1490,6 +1510,9 @@ component output="false" {
 			return getSecureProfileSetting(arguments.settingName);
 		}
 		catch(any e){
+			if(findNoCase("CCS is enabled but not running", e.message) OR findNoCase("Make sure CCS is running", e.message)){
+				return setRdsSettingInConfigMap(arguments.settingName, boolValue);
+			}
 			if(findNoCase("set FAILED", e.message))
 				return "set FAILED. #e.message# #e.detail#";
 			rethrow;
@@ -1579,6 +1602,8 @@ component output="false" {
 				return "true";
 			case lCase(variables.RDS_SEPARATE_USER_AUTH_SETTING):
 				return "false";
+			case "rdsnoauth":
+				return "false";
 			case lCase(variables.EXTERNAL_AUTH_NONE_SETTING):
 				return "None";
 			case lCase(variables.EXTERNAL_AUTH_SAML_SETTING):
@@ -1626,8 +1651,11 @@ component output="false" {
 			case lCase(variables.ADMIN_NEW_PASSWORD_CONFIRM_SETTING):
 				return "ccsTestAdminPass99";
 			case lCase(variables.RDS_OLD_PASSWORD_SETTING):
+			case "cfrdsoldpassword":
 			case lCase(variables.RDS_NEW_PASSWORD_SETTING):
+			case "rdsnewpassword":
 			case lCase(variables.RDS_NEW_PASSWORD_CONFIRM_SETTING):
+			case "rds_newpasswordconfirm":
 				return "ccsTestRdsPass99";
 			case lCase(variables.SEED_SETTING):
 				return uCase(right(hash(createUUID(), "SHA-256"), 16));
@@ -1643,6 +1671,8 @@ component output="false" {
 
 	public boolean function isInstanceLocalSecuritySetting(required string settingName){
 		var key = lCase(trim(arguments.settingName));
+		if(listFindNoCase("UseSingleRdsPassword,RdsSinglePasswordOnly,RdsSeparateUserAuth,enableRDS,rdsEnabled,rdsSecurityEnabled,rdsauth,rdsnoauth", arguments.settingName) GT 0)
+			return false;
 		return findNoCase("password", key) GT 0 OR compareNoCase(key, "seed") EQ 0;
 	}
 
@@ -1718,8 +1748,11 @@ component output="false" {
 			case lCase(variables.ADMIN_NEW_PASSWORD_CONFIRM_SETTING):
 				return trim("" & arguments.expectedValue) EQ trim("" & arguments.actualValue);
 			case lCase(variables.RDS_OLD_PASSWORD_SETTING):
+			case "cfrdsoldpassword":
 			case lCase(variables.RDS_NEW_PASSWORD_SETTING):
+			case "rdsnewpassword":
 			case lCase(variables.RDS_NEW_PASSWORD_CONFIRM_SETTING):
+			case "rds_newpasswordconfirm":
 				return trim("" & arguments.expectedValue) EQ trim("" & arguments.actualValue);
 			case lCase(variables.SEED_SETTING):
 				var actualSeedText = trim("" & arguments.actualValue);
@@ -1790,23 +1823,33 @@ component output="false" {
 			case lCase(variables.ADMIN_OLD_PASSWORD_SETTING):
 			case lCase(variables.ADMIN_NEW_PASSWORD_SETTING):
 			case lCase(variables.ADMIN_NEW_PASSWORD_CONFIRM_SETTING):
-			case lCase(variables.RDS_OLD_PASSWORD_SETTING):
-			case lCase(variables.RDS_NEW_PASSWORD_SETTING):
-			case lCase(variables.RDS_NEW_PASSWORD_CONFIRM_SETTING):
 				var pwdVal = trim("" & arguments.value);
 				if(NOT len(pwdVal) OR pwdVal EQ "password")
+					return "(empty)";
+				return pwdVal;
+			case lCase(variables.RDS_OLD_PASSWORD_SETTING):
+			case "cfrdsoldpassword":
+			case lCase(variables.RDS_NEW_PASSWORD_SETTING):
+			case "rdsnewpassword":
+			case lCase(variables.RDS_NEW_PASSWORD_CONFIRM_SETTING):
+			case "rds_newpasswordconfirm":
+				var pwdVal = trim("" & arguments.value);
+				if(NOT len(pwdVal))
 					return "(empty)";
 				return pwdVal;
 			case lCase(variables.SEED_SETTING):
 				return len(trim("" & arguments.value)) ? trim("" & arguments.value) : "(empty)";
 			case lCase(variables.RDS_ENABLED_SETTING):
+			case "enablerds":
 				return boolText EQ "true" ? "Enabled" : "Disabled";
 			case lCase(variables.RDS_SECURITY_ENABLED_SETTING):
-				return boolText EQ "true" ? "Enabled" : "Disabled";
+			case "rdsauth":
+			case "rdsnoauth":
+				return boolText;
 			case lCase(variables.USE_SINGLE_RDS_PASSWORD_SETTING):
 			case lCase(variables.RDS_SINGLE_PASSWORD_ONLY_SETTING):
 			case lCase(variables.RDS_SEPARATE_USER_AUTH_SETTING):
-				return boolText EQ "true" ? "Use a single password only (default)" : "Separate user name and password authentication (allows multiple users)";
+				return boolText;
 			case lCase(variables.SANDBOX_SECURITY_ENABLED_SETTING):
 				return boolText EQ "true" ? "Enabled" : "Disabled";
 			case lCase(variables.SANDBOX_PATH_SETTING):

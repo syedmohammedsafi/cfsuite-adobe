@@ -16,7 +16,7 @@
 
 	<cf_qatest id="test-Security-UserManager-#SETTING_NAME#">
 		<cfscript>
-			writeOutput(secUtil.getQatestResultMessage(syncTestResult.passed));
+			writeOutput(secUtil.getQatestResultMessage(syncTestResult.passed, SETTING_NAME));
 		</cfscript>
 		<cf_expectedresults>
 			setting values as expected<br>

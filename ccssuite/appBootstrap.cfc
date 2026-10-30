@@ -85,6 +85,7 @@ component {
 	}
 
 	function onRequestStart(){
+		cfsetting(requesttimeout="180");
 		var forceReinit = structKeyExists(url, "reinit") AND (url.reinit EQ 1 OR url.reinit EQ "1");
 		ensureStarted(forceReinit);
 

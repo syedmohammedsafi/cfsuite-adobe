@@ -1,2 +1,2 @@
 <cfset request.scheduledTaskSetting = "endtime">
-<cfinclude template="test.cfm">
+<cfinclude template="_test.cfm">

@@ -1,9 +1,9 @@
 <!---
-* @file  rdsSecurityEnabled.cfm
-* @description RDS Authentication: No authentication / Enable RDS Authentication — multi-node CCS sync test
+* @file  rdsNoAuth.cfm
+* @description RDS Authentication - No authentication needed (not recommended) - multi-node CCS sync test
 --->
-<h2>RDS Authentication Enabled</h2>
-<p>File: security/rds/rdsSecurityEnabled.cfm</p>
+<h2>RDS Authentication - No authentication needed (not recommended)</h2>
+<p>File: security/rds/rdsNoAuth.cfm</p>
 <br>
 <cftry>
 	<cfscript>
@@ -14,9 +14,9 @@
 		syncTestResult = secUtil.runSecuritySyncTest(testDvr, SETTING_NAME, CGI.SCRIPT_NAME);
 	</cfscript>
 
-	<cf_qatest id="test-Security-RDS-#SETTING_NAME#">
+	<cf_qatest id="test-Security-RDS-#SETTING_NAME#-NoAuth">
 		<cfscript>
-			writeOutput(secUtil.getQatestResultMessage(syncTestResult.passed));
+			writeOutput(secUtil.getQatestResultMessage(syncTestResult.passed, SETTING_NAME));
 		</cfscript>
 		<cf_expectedresults>
 			setting values as expected<br>

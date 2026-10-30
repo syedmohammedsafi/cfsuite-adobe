@@ -551,14 +551,14 @@ component output="false" {
 	public string function formatDisplayValue(required string settingName, required any value){
 		switch(lCase(trim(arguments.settingName))){
 			case lCase(variables.USER_EXISTS_SETTING):
-				return formatBooleanSettingValue(arguments.value) EQ "true" ? "Enabled" : "Disabled";
+				return formatBooleanSettingValue(arguments.value);
 			case lCase(variables.USER_DESCRIPTION_SETTING):
 				var text = trim("" & arguments.value);
 				return len(text) ? text : "(empty)";
 			case lCase(variables.ALLOW_RDS_ACCESS_SETTING):
-				return formatBooleanSettingValue(arguments.value) EQ "true" ? "Allowed" : "Not allowed";
+				return formatBooleanSettingValue(arguments.value);
 			case lCase(variables.ALLOW_ADMIN_ACCESS_SETTING):
-				return formatBooleanSettingValue(arguments.value) EQ "true" ? "Allowed" : "Not allowed";
+				return formatBooleanSettingValue(arguments.value);
 			case lCase(variables.ENABLED_DATA_SOURCE_SETTING):
 			case lCase(variables.USER_ROLE_SETTING):
 			case lCase(variables.USER_PROHIBITED_ROLE_SETTING):
@@ -568,7 +568,7 @@ component output="false" {
 			case lCase(variables.SECURED_FILE_PATH_SETTING):
 				return formatBooleanSettingValue(arguments.value) EQ "true" ? getTestSecuredFilePath() : "(none)";
 			case lCase(variables.IS_GROUP_SETTING):
-				return formatBooleanSettingValue(arguments.value) EQ "true" ? "Group" : "Individual user";
+				return formatBooleanSettingValue(arguments.value);
 			case lCase(variables.USER_PASSWORD_SETTING):
 			case lCase(variables.USER_PASSWORD_CONFIRM_SETTING):
 				var text = trim("" & arguments.value);

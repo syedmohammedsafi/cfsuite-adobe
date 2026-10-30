@@ -1,2 +1,2 @@
 <cfset request.scheduledTaskSetting = "intervalSeconds">
-<cfinclude template="test.cfm">
+<cfinclude template="_test.cfm">

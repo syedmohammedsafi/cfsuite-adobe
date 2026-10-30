@@ -1,2 +1,2 @@
 <cfset request.scheduledTaskSetting = "eventhandler">
-<cfinclude template="test.cfm">
+<cfinclude template="_test.cfm">

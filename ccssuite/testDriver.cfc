@@ -127,13 +127,13 @@ component output="true" displayname=""  {
 					OR lCase(getMenuNameFromUrl(setURLSuffix)) EQ "aiservices"
 					OR lCase(getMenuNameFromUrl(setURLSuffix)) EQ "extensions"
 					OR lCase(getMenuNameFromUrl(setURLSuffix)) EQ "eventgateways"
-					OR (isSecurityMenuUrl(setURLSuffix) AND listFindNoCase("idpconfiguration,spconfiguration", apiArea))){
+					OR (isSecurityMenuUrl(setURLSuffix) AND listFindNoCase("idpconfiguration,spconfiguration,rds", apiArea))){
 				if(NOT listFindNoCase("SandboxPath,SandboxPathCopyFrom", cfSettingKey) AND NOT isInstanceLocalSetting(apiArea, cfSettingKey))
 					propagateDocumentSettingToPrimePeers(postSetTestFrame, toSetValue, cfSettingKey, apiArea);
 			}
 
 			// Cluster document sync can briefly revert neo-saml on the origin node after peer propagation.
-			if(isSecurityMenuUrl(setURLSuffix) AND listFindNoCase("idpconfiguration,spconfiguration", apiArea) AND NOT listFindNoCase("SandboxPath,SandboxPathCopyFrom", cfSettingKey) AND NOT isInstanceLocalSetting(apiArea, cfSettingKey)){
+			if(isSecurityMenuUrl(setURLSuffix) AND listFindNoCase("idpconfiguration,spconfiguration,rds", apiArea) AND NOT listFindNoCase("SandboxPath,SandboxPathCopyFrom", cfSettingKey) AND NOT isInstanceLocalSetting(apiArea, cfSettingKey)){
 				if(isLocalNodePort(firstNodeKey)){
 					setPropertyLocal(cfSettingKey, toSetValue, apiArea, menuName);
 				} else {
@@ -143,6 +143,7 @@ component output="true" displayname=""  {
 	
 			for(primeKey in listToArray(primKeyList)){
 				prePostPairMap = postSetTestFrame[application.testConstants.TEST_FRAME.PRIME_SET].find(primeKey)
+				var maxAttemptsForNode = (isInstanceLocalSetting(apiArea, cfSettingKey) AND NOT isLocalNodePort(primeKey)) ? 1 : 5;
 				prePostPairMap[application.testConstants.TEST_FRAME.POSTSET_VALUE] =
 					readSettingValueWithRetry(
 						primeKey,
@@ -150,7 +151,7 @@ component output="true" displayname=""  {
 						cfSettingKey,
 						apiArea,
 						toSetValue,
-						5,
+						maxAttemptsForNode,
 						250
 					)
 			}
@@ -1009,7 +1010,7 @@ component output="true" displayname=""  {
 		}
 
 		var _url = getURL(nodeKey, urlSuffix, buildSettingQueryParams(cfSetting, "", apiArea, false));
-		cfhttp(url="#_url#", method="GET", result="response", timeout=30)
+		cfhttp(url="#_url#", method="GET", result="response", timeout=10)
 		if(isHttpSuccess(response.statusCode)){
 			body = trim(response.fileContent)
 			if(isErrorHtmlBody(body))
@@ -1231,7 +1232,7 @@ component output="true" displayname=""  {
 
 
 	private boolean function makeSetHTTPCall(string _url){
-		cfhttp(url="#_url#", method="GET", result="response", timeout=30)
+		cfhttp(url="#_url#", method="GET", result="response", timeout=10)
 		variables.lastHttpResponse = response;
 		if(isHttpSuccess(response.statusCode))
 			return true

@@ -31,10 +31,36 @@ component output="false" {
 		boolean skipUnreachableNodes = true,
 		string nodesScope = "all"
 	){
+		if(findNoCase("/rds/", arguments.scriptPath) OR listFindNoCase("RdsEnabled,RdsSecurityEnabled,UseSingleRdsPassword,RdsSinglePasswordOnly,RdsSeparateUserAuth,RdsOldPassword,RdsNewPassword,RdsNewPasswordConfirm,enableRDS,cfrdsoldpassword,rdsNewpassword,rds_NewpasswordConfirm", arguments.settingName)){
+			return runRdsSyncTest(
+				arguments.testDriver,
+				arguments.settingName,
+				arguments.scriptPath,
+				arguments.skipUnreachableNodes,
+				arguments.nodesScope
+			);
+		}
 		return runAdministratorSyncTest(
 			arguments.testDriver,
 			arguments.settingName,
 			arguments.scriptPath,
+			arguments.skipUnreachableNodes,
+			arguments.nodesScope
+		);
+	}
+
+	public struct function runRdsSyncTest(
+		required any testDriver,
+		required string settingName,
+		required string scriptPath,
+		boolean skipUnreachableNodes = true,
+		string nodesScope = "all"
+	){
+		return runSettingsSyncTest(
+			arguments.testDriver,
+			arguments.settingName,
+			arguments.scriptPath,
+			"rds",
 			arguments.skipUnreachableNodes,
 			arguments.nodesScope
 		);
@@ -1098,8 +1124,10 @@ component output="false" {
 
 	private boolean function allSameClusterRowsPassed(required array rows, string settingName = ""){
 		for(var row in arguments.rows){
-			if(isSameClusterNode(row.nodeKey) AND NOT row.passed)
-				return false;
+			if(isSameClusterNode(row.nodeKey)){
+				if(NOT (structKeyExists(row, "passed") AND row.passed))
+					return false;
+			}
 		}
 		return true;
 	}
@@ -1362,12 +1390,20 @@ component output="false" {
 			application.ccsTestNodesScope = "currentPort";
 			return;
 		}
-		if(listFindNoCase("RdsNewPassword,RdsOldPassword,RdsNewPasswordConfirm", settingName) GT 0){
-			var orig = structKeyExists(arguments.syncTestResult, "originalValue") ? arguments.syncTestResult.originalValue : "(empty)";
+		if(listFindNoCase("RdsNewPassword,RdsOldPassword,RdsNewPasswordConfirm,cfrdsoldpassword,rdsNewpassword,rds_NewpasswordConfirm", settingName) GT 0){
+			var orig = structKeyExists(arguments.syncTestResult, "originalValue") ? arguments.syncTestResult.originalValue : "";
 			writeOutput("restoring #settingName# to original value: #orig#<br>");
 			new cfsuite.ccssuite.utils.securityConfigUtil().init().setRdsSetting(settingName, orig);
 			structDelete(application, "ccsTestRdsPassword");
 			writeOutput("rollback/restore of #settingName# to [#orig#] completed.<br>");
+			application.ccsTestNodesScope = "currentPort";
+			return;
+		}
+		if(listFindNoCase("RdsSinglePasswordOnly,RdsSeparateUserAuth", settingName) GT 0){
+			var orig = structKeyExists(arguments.syncTestResult, "originalValue") ? arguments.syncTestResult.originalValue : "true";
+			writeOutput("restoring #settingName# to original value: #secUtil.formatDisplayValue(settingName, orig)#<br>");
+			new cfsuite.ccssuite.utils.securityConfigUtil().init().setRdsSetting("UseSingleRdsPassword", orig);
+			writeOutput("rollback/restore of #settingName# completed.<br>");
 			application.ccsTestNodesScope = "currentPort";
 			return;
 		}
@@ -1456,8 +1492,8 @@ component output="false" {
 		application.ccsTestNodesScope = "currentPort";
 	}
 
-	public string function getQatestResultMessage(required boolean passed){
-		return new cfsuite.ccssuite.utils.serverSettingsTestUtil().init().getQatestResultMessage(arguments.passed);
+	public string function getQatestResultMessage(required boolean passed, string settingName = ""){
+		return new cfsuite.ccssuite.utils.serverSettingsTestUtil().init().getQatestResultMessage(arguments.passed, arguments.settingName);
 	}
 
 	private void function applyOriginalPresetValuesToFrame(required struct testFrame, required struct existingValues){
@@ -1565,10 +1601,6 @@ component output="false" {
 		// "unchanged".
 		if(NOT isSameClusterNode(arguments.nodeKey))
 			return trim("" & arguments.presetValue) EQ postText;
-		if(secUtil.isInstanceLocalSecuritySetting(arguments.settingName)){
-			if(NOT isCurrentPortNode(arguments.nodeKey))
-				return trim("" & arguments.presetValue) EQ postText;
-		}
 		if(listFindNoCase("AllowedAdminIpAdd,AllowedAdminIpRemove", arguments.settingName))
 			return secUtil.allowedIpValuesMatch(arguments.expectedValue, arguments.postValue, arguments.settingName);
 		if(listFindNoCase("IdpFromSamlUrl,IdpFromSamlDefinition,IdpFromXmlFile,IdpOwnDefinition,IdpTestRemoveAll,IdpFieldTestSetup,IdpName,IdpDescription,IdpRefreshInterval,IdpSamlUrl,IdpOwnFieldTestSetup,IdpOwnEntityId,IdpOwnSsoUrl,IdpOwnSsoBinding,IdpOwnSloUrl,IdpOwnSloBinding,IdpOwnLogoutResponseUrl,IdpOwnSignRequests,IdpOwnSignCertificate", arguments.settingName))
@@ -1578,15 +1610,6 @@ component output="false" {
 		if(listFindNoCase("ChallengeStore,ChallengeTtl,PasskeyDefaultDatasource,ClientCertAuthEnabled,ClientCertRootAdminEnabled,ClientCertCertificateSource,ClientCertSubjectHeader,ClientCertMatchCriteria", arguments.settingName))
 			return secUtil.settingsValuesMatch(arguments.expectedValue, arguments.postValue, arguments.settingName);
 		return secUtil.scalarValuesMatch(arguments.expectedValue, arguments.postValue, arguments.settingName);
-	}
-
-	private boolean function isCurrentPortNode(required string nodeKey){
-		var parts = listToArray(arguments.nodeKey, "::", false, true);
-		if(arrayLen(parts) LT 2)
-			parts = listToArray(arguments.nodeKey, ":", false, true);
-		if(arrayLen(parts) LT 2)
-			return false;
-		return val(parts[2]) EQ val(cgi.server_port);
 	}
 
 	private string function getCurrentNodeKey(){

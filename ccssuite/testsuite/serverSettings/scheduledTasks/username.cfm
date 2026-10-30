@@ -1,2 +1,2 @@
 <cfset request.scheduledTaskSetting = "username">
-<cfinclude template="test.cfm">
+<cfinclude template="_test.cfm">

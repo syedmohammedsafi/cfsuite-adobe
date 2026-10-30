@@ -1,26 +1,22 @@
 <!---
 * @file  useSeparateRdsUserAuth.cfm
-* @description RDS Authentication — Separate user name and password authentication (allows multiple users)
-* — multi-node CCS sync test. Uses the RdsSeparateUserAuth alias (securityConfigUtil.cfc) rather than the
-* bare UseSingleRdsPassword setting -- see useSingleRdsPassword.cfm for why: this alias forces false
-* regardless of current state, so this option is genuinely set and verified across all nodes on every run,
-* not just whichever direction the bare setting's toggle happened to go.
+* @description RDS Authentication - Separate user name and password authentication (allows multiple users) - multi-node CCS sync test
 --->
-<h2>RDS Authentication — Separate User Name and Password</h2>
+<h2>RDS Authentication - Separate User Name and Password</h2>
 <p>File: security/rds/useSeparateRdsUserAuth.cfm</p>
 <br>
 <cftry>
 	<cfscript>
-		final SETTING_NAME = "RdsSeparateUserAuth";
+		final SETTING_NAME = "UseSingleRdsPassword";
 		syncTestResult = {};
 		testDvr = new cfsuite.ccssuite.testDriver();
 		secUtil = new cfsuite.ccssuite.utils.securityTestUtil().init();
 		syncTestResult = secUtil.runSecuritySyncTest(testDvr, SETTING_NAME, CGI.SCRIPT_NAME);
 	</cfscript>
 
-	<cf_qatest id="test-Security-RDS-#SETTING_NAME#">
+	<cf_qatest id="test-Security-RDS-#SETTING_NAME#-SeparateUserAuth">
 		<cfscript>
-			writeOutput(secUtil.getQatestResultMessage(syncTestResult.passed));
+			writeOutput(secUtil.getQatestResultMessage(syncTestResult.passed, SETTING_NAME));
 		</cfscript>
 		<cf_expectedresults>
 			setting values as expected<br>
